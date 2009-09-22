@@ -76,4 +76,5 @@ Twisted-like. Here's a list:
 
 INSTALL
 
+  make sure you have simplejson installed, then:
   sudo python setup.py install
