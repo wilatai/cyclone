@@ -1,47 +1,8 @@
-#!/usr/bin/env python
-#
-# Copyright 2009 Facebook
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License. You may obtain
-# a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations
-# under the License.
+# coding: utf-8
 
-"""The Tornado web framework.
-
-The Tornado web framework looks a bit like web.py (http://webpy.org/) or
-Google's webapp (http://code.google.com/appengine/docs/python/tools/webapp/),
-but with additional tools and optimizations to take advantage of the
-Tornado non-blocking web server and tools.
-
-Here is the canonical "Hello, world" example app:
-
-    import tornado.httpserver
-    import tornado.ioloop
-    import tornado.web
-
-    class MainHandler(tornado.web.RequestHandler):
-        def get(self):
-            self.write("Hello, world")
-
-    if __name__ == "__main__":
-        application = tornado.web.Application([
-            (r"/", MainHandler),
-        ])
-        http_server = tornado.httpserver.HTTPServer(application)
-        http_server.listen(8888)
-        tornado.ioloop.IOLoop.instance().start()
-
-See the Tornado walkthrough on GitHub for more details and a good
-getting started guide.
-"""
+from twisted.python import log
+from twisted.internet import protocol
+from cyclone import escape, template, httpserver
 
 import base64
 import binascii
@@ -49,19 +10,16 @@ import calendar
 import Cookie
 import datetime
 import email.utils
-import escape
 import functools
 import hashlib
-import hmac
 import httplib
+import hmac
 import locale
-import logging
 import mimetypes
 import os.path
 import re
 import stat
 import sys
-import template
 import time
 import types
 import urllib
@@ -78,6 +36,8 @@ class RequestHandler(object):
     """
     SUPPORTED_METHODS = ("GET", "HEAD", "POST", "DELETE", "PUT")
 
+    xheaders = False
+    no_keep_alive = False
     def __init__(self, application, request, transforms=None):
         self.application = application
         self.request = request
@@ -90,6 +50,8 @@ class RequestHandler(object):
         self.ui["modules"] = _O((n, self._ui_module(n, m)) for n, m in
                                 application.ui_modules.iteritems())
         self.clear()
+	self.request.connection.xheaders = self.xheaders
+	self.request.connection.no_keep_alive = self.no_keep_alive
 
     @property
     def settings(self):
@@ -253,11 +215,11 @@ class RequestHandler(object):
         parts = value.split("|")
         if len(parts) != 3: return None
         if self._cookie_signature(parts[0], parts[1]) != parts[2]:
-            logging.warning("Invalid cookie signature %r", value)
+            log.err("Invalid cookie signature %r" % value)
             return None
         timestamp = int(parts[1])
         if timestamp < time.time() - 31 * 86400:
-            logging.warning("Expired cookie %r", value)
+            log.err("Expired cookie %r" % value)
             return None
         try:
             return base64.b64decode(parts[0])
@@ -400,8 +362,6 @@ class RequestHandler(object):
 
     def flush(self, include_footers=False):
         """Flushes the current output buffer to the nextwork."""
-        if self.application._wsgi:
-            raise Exception("WSGI applications do not support flush()")
         if not self._headers_written:
             self._headers_written = True
             headers = self._generate_headers()
@@ -432,6 +392,9 @@ class RequestHandler(object):
         if headers or chunk:
             self.request.write(headers + chunk)
 
+    def notifyFinish(self):
+	return self.request.notifyFinish()
+
     def finish(self, chunk=None):
         """Finishes this response, ending the HTTP request."""
         assert not self._finished
@@ -455,10 +418,9 @@ class RequestHandler(object):
                 content_length = sum(len(part) for part in self._write_buffer)
                 self.set_header("Content-Length", content_length)
 
-        if not self.application._wsgi:
-            self.flush(include_footers=True)
-            self.request.finish()
-            self._log()
+	self.flush(include_footers=True)
+	self.request.finish()
+	self._log()
         self._finished = True
 
     def send_error(self, status_code=500):
@@ -469,7 +431,7 @@ class RequestHandler(object):
         for your application.
         """
         if self._headers_written:
-            logging.error("Cannot send error response after headers written")
+            log.err("Cannot send error response after headers written")
             if not self._finished:
                 self.finish()
             return
@@ -637,7 +599,7 @@ class RequestHandler(object):
                 hashes[path] = hashlib.md5(f.read()).hexdigest()
                 f.close()
             except:
-                logging.error("Could not open static file %r", path)
+                log.err("Could not open static file %r" % path)
                 hashes[path] = None
         base = self.request.protocol + "://" + self.request.host \
             if getattr(self, "include_host", False) else ""
@@ -645,26 +607,6 @@ class RequestHandler(object):
             return base + "/static/" + path + "?v=" + hashes[path][:5]
         else:
             return base + "/static/" + path
-
-    def async_callback(self, callback, *args, **kwargs):
-        """Wrap callbacks with this if they are used on asynchronous requests.
-
-        Catches exceptions and properly finishes the request.
-        """
-        if callback is None:
-            return None
-        if args or kwargs:
-            callback = functools.partial(callback, *args, **kwargs)
-        def wrapper(*args, **kwargs):
-            try:
-                return callback(*args, **kwargs)
-            except Exception, e:
-                if self._headers_written:
-                    logging.error("Exception after headers written",
-                                  exc_info=True)
-                else:
-                    self._handle_request_exception(e)
-        return wrapper
 
     def require_setting(self, name, feature="this feature"):
         """Raises an exception if the given app setting is not defined."""
@@ -703,15 +645,8 @@ class RequestHandler(object):
         return "\r\n".join(lines) + "\r\n\r\n"
 
     def _log(self):
-        if self._status_code < 400:
-            log_method = logging.info
-        elif self._status_code < 500:
-            log_method = logging.warning
-        else:
-            log_method = logging.error
         request_time = 1000.0 * self.request.request_time()
-        log_method("%d %s %.2fms", self._status_code,
-                   self._request_summary(), request_time)
+        log.msg("%d %s %.2fms" % (self._status_code, self._request_summary(), request_time))
 
     def _request_summary(self):
         return self.request.method + " " + self.request.uri + " (" + \
@@ -722,15 +657,16 @@ class RequestHandler(object):
             if e.log_message:
                 format = "%d %s: " + e.log_message
                 args = [e.status_code, self._request_summary()] + list(e.args)
-                logging.warning(format, *args)
+		msg = lambda *args: format % args
+                log.err(msg(*args))
             if e.status_code not in httplib.responses:
-                logging.error("Bad HTTP status code: %d", e.status_code)
+                log.err("Bad HTTP status code: %d" % e.status_code)
                 self.send_error(500)
             else:
                 self.send_error(e.status_code)
         else:
-            logging.error("Uncaught exception %s\n%r", self._request_summary(),
-                          self.request, exc_info=e)
+            log.err("Uncaught exception %s :: %r :: %s" % (self._request_summary(),
+                          self.request, e))
             self.send_error(500)
 
     def _ui_module(self, name, module):
@@ -768,8 +704,6 @@ def asynchronous(method):
     """
     @functools.wraps(method)
     def wrapper(self, *args, **kwargs):
-        if self.application._wsgi:
-            raise Exception("@asynchronous is not supported for WSGI apps")
         self._auto_finish = False
         return method(self, *args, **kwargs)
     return wrapper
@@ -815,7 +749,8 @@ def addslash(method):
     return wrapper
 
 
-class Application(object):
+class Application(protocol.ServerFactory):
+    protocol = httpserver.HTTPConnection
     """A collection of request handlers that make up a web application.
 
     Instances of this class are callable and can be passed directly to
@@ -853,8 +788,7 @@ class Application(object):
     keyword argument. We will serve those files from the /static/ URI,
     and we will serve /favicon.ico and /robots.txt from the same directory.
     """
-    def __init__(self, handlers=None, default_host="", transforms=None,
-                 wsgi=False, **settings):
+    def __init__(self, handlers=None, default_host="", transforms=None, **settings):
         if transforms is None:
             self.transforms = [ChunkedTransferEncoding]
         else:
@@ -864,7 +798,6 @@ class Application(object):
         self.settings = settings
         self.ui_modules = {}
         self.ui_methods = {}
-        self._wsgi = wsgi
         self._load_ui_modules(settings.get("ui_modules", {}))
         self._load_ui_methods(settings.get("ui_methods", {}))
         if self.settings.get("static_path"):
@@ -878,9 +811,9 @@ class Application(object):
         if handlers: self.add_handlers(".*$", handlers)
 
         # Automatically reload modified modules
-        if self.settings.get("debug") and not wsgi:
-            import autoreload
-            autoreload.start()
+        #if self.settings.get("debug") and not wsgi:
+            #import autoreload
+            #autoreload.start()
 
     def add_handlers(self, host_pattern, host_handlers):
         """Appends the given handlers to our handler list."""

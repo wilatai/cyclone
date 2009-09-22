@@ -1,135 +1,74 @@
-#!/usr/bin/env python
-#
-# Copyright 2009 Facebook
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License. You may obtain
-# a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations
-# under the License.
+# coding: utf-8
 
-"""A non-blocking, single-threaded HTTP server."""
-
+from twisted.python import log
+from twisted.protocols import basic
+from twisted.internet import defer, protocol
 import cgi
 import errno
 import fcntl
 import functools
-import ioloop
-import iostream
-import logging
-import socket
 import time
 import urlparse
 
-
-class HTTPServer(object):
-    """A non-blocking, single-threaded HTTP server.
-
-    A server is defined by a request callback that takes an HTTPRequest
-    instance as an argument and writes a valid HTTP response with
-    request.write(). request.finish() finishes the request (but does not
-    necessarily close the connection in the case of HTTP/1.1 keep-alive
-    requests). A simple example server that echoes back the URI you
-    requested:
-
-        import httpserver
-        import ioloop
-
-        def handle_request(request):
-           message = "You requested %s\n" % request.uri
-           request.write("HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n%s" % (
-                         len(message), message))
-           request.finish()
-
-        http_server = httpserver.HTTPServer(handle_request)
-        http_server.listen(8888)
-        ioloop.IOLoop.instance().start()
-
-    HTTPServer is a very basic connection handler. Beyond parsing the
-    HTTP request body and headers, the only HTTP semantics implemented
-    in HTTPServer is HTTP/1.1 keep-alive connections. We do not, however,
-    implement chunked encoding, so the request callback must provide a
-    Content-Length header or implement chunked encoding for HTTP/1.1
-    requests for the server to run correctly for HTTP/1.1 clients. If
-    the request handler is unable to do this, you can provide the
-    no_keep_alive argument to the HTTPServer constructor, which will
-    ensure the connection is closed on every request no matter what HTTP
-    version the client is using.
-
-    If xheaders is True, we support the X-Real-Ip and X-Scheme headers,
-    which override the remote IP and HTTP scheme for all requests. These
-    headers are useful when running Tornado behind a reverse proxy or
-    load balancer.
-    """
-    def __init__(self, request_callback, no_keep_alive=False, io_loop=None,
-                 xheaders=False):
-        self.request_callback = request_callback
-        self.no_keep_alive = no_keep_alive
-        self.io_loop = io_loop or ioloop.IOLoop.instance()
-        self.xheaders = xheaders
-        self._socket = None
-
-    def listen(self, port):
-        assert not self._socket
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
-        flags = fcntl.fcntl(self._socket.fileno(), fcntl.F_GETFD)
-        flags |= fcntl.FD_CLOEXEC
-        fcntl.fcntl(self._socket.fileno(), fcntl.F_SETFD, flags)
-        self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._socket.setblocking(0)
-        self._socket.bind(("", port))
-        self._socket.listen(128)
-        self.io_loop.add_handler(self._socket.fileno(), self._handle_events,
-                                 self.io_loop.READ)
-
-    def _handle_events(self, fd, events):
-        while True:
-            try:
-                connection, address = self._socket.accept()
-            except socket.error, e:
-                if e[0] in (errno.EWOULDBLOCK, errno.EAGAIN):
-                    return
-                raise
-            try:
-                stream = iostream.IOStream(connection, io_loop=self.io_loop)
-                HTTPConnection(stream, address, self.request_callback,
-                               self.no_keep_alive, self.xheaders)
-            except:
-                logging.error("Error in connection callback", exc_info=True)
-
-
-class HTTPConnection(object):
+class HTTPConnection(basic.LineReceiver):
     """Handles a connection to an HTTP client, executing HTTP requests.
 
     We parse HTTP headers and bodies, and execute the request callback
     until the HTTP conection is closed.
     """
-    def __init__(self, stream, address, request_callback, no_keep_alive=False,
-                 xheaders=False):
-        self.stream = stream
-        self.address = address
-        self.request_callback = request_callback
-        self.no_keep_alive = no_keep_alive
-        self.xheaders = xheaders
+    delimiter = "\r\n"
+
+    def connectionMade(self):
+	self._headersbuffer = []
+	self._contentbuffer = []
+	self._finishCallback = None
+	self.no_keep_alive = False
+	self.content_length = None
+        self.request_callback = self.factory
+	self.xheaders = self.factory.settings.get('xheaders', False)
         self._request = None
         self._request_finished = False
-        self.stream.read_until("\r\n\r\n", self._on_headers)
 
+    def connectionLost(self, reason):
+	if self._finishCallback:
+	    self._finishCallback.callback(reason.getErrorMessage())
+	    self._finishCallback = None
+    
+    def notifyFinish(self):
+	if self._finishCallback is None:
+	    self._finishCallback = defer.Deferred()
+	return self._finishCallback
+
+    def lineReceived(self, line):
+	if line:
+	    self._headersbuffer.append(line+self.delimiter)
+	else:
+	    self._on_headers(''.join(self._headersbuffer))
+	    self._headersbuffer = []
+    
+    def rawDataReceived(self, data):
+	if self.content_length is not None:
+	    data, rest = data[:self.content_length], data[self.content_length:]
+	    self.content_length -= len(data)
+	else:
+	    rest = ''
+	
+	self._contentbuffer.append(data)
+	if self.content_length == 0:
+	    self._on_request_body(''.join(self._contentbuffer))
+	    self._contentbuffer = []
+	    self.content_length = None
+	    self.setLineMode(rest)
+	    
     def write(self, chunk):
         assert self._request, "Request closed"
-        self.stream.write(chunk, self._on_write_complete)
+        #self.stream.write(chunk, self._on_write_complete)
+        self.transport.write(chunk)
 
     def finish(self):
         assert self._request, "Request closed"
         self._request_finished = True
-        if not self.stream.writing():
-            self._finish_request()
+        self._finish_request()
 
     def _on_write_complete(self):
         if self._request_finished:
@@ -150,9 +89,8 @@ class HTTPConnection(object):
         self._request = None
         self._request_finished = False
         if disconnect:
-            self.stream.close()
+            self.transport.loseConnection()
             return
-        self.stream.read_until("\r\n\r\n", self._on_headers)
 
     def _on_headers(self, data):
         eol = data.find("\r\n")
@@ -163,16 +101,15 @@ class HTTPConnection(object):
         headers = HTTPHeaders.parse(data[eol:])
         self._request = HTTPRequest(
             connection=self, method=method, uri=uri, version=version,
-            headers=headers, remote_ip=self.address[0])
+            headers=headers, remote_ip=self.transport.getPeer().host)
 
         content_length = headers.get("Content-Length")
         if content_length:
             content_length = int(content_length)
-            if content_length > self.stream.max_buffer_size:
-                raise Exception("Content-Length too long")
             if headers.get("Expect") == "100-continue":
-                self.stream.write("HTTP/1.1 100 (Continue)\r\n\r\n")
-            self.stream.read_bytes(content_length, self._on_request_body)
+                self.transport.write("HTTP/1.1 100 (Continue)\r\n\r\n")
+	    self.content_length = content_length
+	    self.setRawMode()
             return
 
         self.request_callback(self._request)
@@ -203,13 +140,13 @@ class HTTPConnection(object):
             if not part: continue
             eoh = part.find("\r\n\r\n")
             if eoh == -1:
-                logging.warning("multipart/form-data missing headers")
+                log.err("multipart/form-data missing headers")
                 continue
             headers = HTTPHeaders.parse(part[:eoh])
             name_header = headers.get("Content-Disposition", "")
             if not name_header.startswith("form-data;") or \
                not part.endswith("\r\n"):
-                logging.warning("Invalid multipart/form-data")
+                log.err("Invalid multipart/form-data")
                 continue
             value = part[eoh + 4:-2]
             name_values = {}
@@ -217,7 +154,7 @@ class HTTPConnection(object):
                 name, name_value = name_part.strip().split("=", 1)
                 name_values[name] = name_value.strip('"').decode("utf-8")
             if not name_values.get("name"):
-                logging.warning("multipart/form-data value missing name")
+                log.err("multipart/form-data value missing name")
                 continue
             name = name_values["name"]
             if name_values.get("filename"):
@@ -255,11 +192,11 @@ class HTTPRequest(object):
         self.version = version
         self.headers = headers or HTTPHeaders()
         self.body = body or ""
-        if connection and connection.xheaders:
-            self.remote_ip = headers.get("X-Real-Ip", remote_ip)
-            self.protocol = headers.get("X-Scheme", protocol) or "http"
-        else:
-            self.remote_ip = remote_ip
+	if connection and connection.xheaders:
+	    self.remote_ip = headers.get("X-Real-Ip", remote_ip)
+	    self.protocol = headers.get("X-Scheme", protocol) or "http"
+	else:
+	    self.remote_ip = remote_ip
             self.protocol = protocol or "http"
         self.host = host or headers.get("Host") or "127.0.0.1"
         self.files = files or {}
@@ -300,6 +237,9 @@ class HTTPRequest(object):
             return time.time() - self._start_time
         else:
             return self._finish_time - self._start_time
+
+    def notifyFinish(self):
+	return self.connection.notifyFinish()
 
     def __repr__(self):
         attrs = ("protocol", "host", "method", "uri", "version", "remote_ip",

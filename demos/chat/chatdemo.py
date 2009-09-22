@@ -14,22 +14,17 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import logging
-import tornado.auth
-import tornado.escape
-import tornado.httpserver
-import tornado.ioloop
-import tornado.options
-import tornado.web
+import sys
+import cyclone.web
+import cyclone.auth
+import cyclone.escape
+from twisted.python import log
+from twisted.internet import reactor
+
 import os.path
 import uuid
 
-from tornado.options import define, options
-
-define("port", default=8888, help="run on the given port", type=int)
-
-
-class Application(tornado.web.Application):
+class Application(cyclone.web.Application):
     def __init__(self):
         handlers = [
             (r"/", MainHandler),
@@ -45,18 +40,18 @@ class Application(tornado.web.Application):
             static_path=os.path.join(os.path.dirname(__file__), "static"),
             xsrf_cookies=True,
         )
-        tornado.web.Application.__init__(self, handlers, **settings)
+        cyclone.web.Application.__init__(self, handlers, **settings)
 
 
-class BaseHandler(tornado.web.RequestHandler):
+class BaseHandler(cyclone.web.RequestHandler):
     def get_current_user(self):
         user_json = self.get_secure_cookie("user")
         if not user_json: return None
-        return tornado.escape.json_decode(user_json)
+        return cyclone.escape.json_decode(user_json)
 
 
 class MainHandler(BaseHandler):
-    @tornado.web.authenticated
+    @cyclone.web.authenticated
     def get(self):
         self.render("index.html", messages=MessageMixin.cache)
 
@@ -81,12 +76,12 @@ class MessageMixin(object):
 
     def new_messages(self, messages):
         cls = MessageMixin
-        logging.info("Sending new message to %r listeners", len(cls.waiters))
+        log.msg("Sending new message to %r listeners" % len(cls.waiters))
         for callback in cls.waiters:
             try:
                 callback(messages)
             except:
-                logging.error("Error in waiter callback", exc_info=True)
+                log.err()
         cls.waiters = []
         cls.cache.extend(messages)
         if len(cls.cache) > self.cache_size:
@@ -94,7 +89,7 @@ class MessageMixin(object):
 
 
 class MessageNewHandler(BaseHandler, MessageMixin):
-    @tornado.web.authenticated
+    @cyclone.web.authenticated
     def post(self):
         message = {
             "id": str(uuid.uuid4()),
@@ -110,32 +105,31 @@ class MessageNewHandler(BaseHandler, MessageMixin):
 
 
 class MessageUpdatesHandler(BaseHandler, MessageMixin):
-    @tornado.web.authenticated
-    @tornado.web.asynchronous
+    @cyclone.web.authenticated
+    @cyclone.web.asynchronous
     def post(self):
         cursor = self.get_argument("cursor", None)
-        self.wait_for_messages(self.async_callback(self.on_new_messages),
-                               cursor=cursor)
+        self.wait_for_messages(self.on_new_messages, cursor=cursor)
 
     def on_new_messages(self, messages):
         # Closed client connection
-        if self.request.connection.stream.closed():
-            return
+        #if self.request.connection.stream.closed():
+            #return
         self.finish(dict(messages=messages))
 
 
-class AuthLoginHandler(BaseHandler, tornado.auth.GoogleMixin):
-    @tornado.web.asynchronous
+class AuthLoginHandler(BaseHandler, cyclone.auth.GoogleMixin):
+    @cyclone.web.asynchronous
     def get(self):
         if self.get_argument("openid.mode", None):
-            self.get_authenticated_user(self.async_callback(self._on_auth))
+            self.get_authenticated_user(self._on_auth)
             return
         self.authenticate_redirect(ax_attrs=["name"])
     
     def _on_auth(self, user):
         if not user:
-            raise tornado.web.HTTPError(500, "Google auth failed")
-        self.set_secure_cookie("user", tornado.escape.json_encode(user))
+            raise cyclone.web.HTTPError(500, "Google auth failed")
+        self.set_secure_cookie("user", cyclone.escape.json_encode(user))
         self.redirect("/")
 
 
@@ -146,11 +140,10 @@ class AuthLogoutHandler(BaseHandler):
 
 
 def main():
-    tornado.options.parse_command_line()
-    http_server = tornado.httpserver.HTTPServer(Application())
-    http_server.listen(options.port)
-    tornado.ioloop.IOLoop.instance().start()
+    reactor.listenTCP(8888, Application())
+    reactor.run()
 
 
 if __name__ == "__main__":
+    log.startLogging(sys.stdout)
     main()

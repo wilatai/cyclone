@@ -14,30 +14,25 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import tornado.httpserver
-import tornado.ioloop
-import tornado.options
-import tornado.web
+import sys
+import cyclone.web
+from twisted.python import log
+from twisted.internet import reactor
 
-from tornado.options import define, options
-
-define("port", default=8888, help="run on the given port", type=int)
-
-
-class MainHandler(tornado.web.RequestHandler):
+class MainHandler(cyclone.web.RequestHandler):
+    no_keep_alive = False
     def get(self):
         self.write("Hello, world")
 
 
 def main():
-    tornado.options.parse_command_line()
-    application = tornado.web.Application([
+    application = cyclone.web.Application([
         (r"/", MainHandler),
-    ])
-    http_server = tornado.httpserver.HTTPServer(application)
-    http_server.listen(options.port)
-    tornado.ioloop.IOLoop.instance().start()
+    ], xheaders=True)
 
+    reactor.listenTCP(8888, application)
+    reactor.run()
 
 if __name__ == "__main__":
+    log.startLogging(sys.stdout)
     main()

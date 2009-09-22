@@ -80,11 +80,11 @@ to all templates by default.
 """
 
 from __future__ import with_statement
+from twisted.python import log
+from cyclone import escape
 
 import cStringIO
 import datetime
-import escape
-import logging
 import os.path
 import re
 
@@ -108,7 +108,7 @@ class Template(object):
             self.compiled = compile(self.code, self.name, "exec")
         except:
             formatted_code = _format_code(self.code).rstrip()
-            logging.error("%s code:\n%s", self.name, formatted_code)
+            log.err("%s code:\n%s" % (self.name, formatted_code))
             raise
 
     def generate(self, **kwargs):
@@ -127,7 +127,7 @@ class Template(object):
             return execute()
         except:
             formatted_code = _format_code(self.code).rstrip()
-            logging.error("%s code:\n%s", self.name, formatted_code)
+            log.err("%s code:\n%s" % (self.name, formatted_code))
             raise
 
     def _generate_python(self, loader, compress_whitespace):

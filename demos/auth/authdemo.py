@@ -14,19 +14,15 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import tornado.auth
-import tornado.escape
-import tornado.httpserver
-import tornado.ioloop
-import tornado.options
-import tornado.web
-
-from tornado.options import define, options
-
-define("port", default=8888, help="run on the given port", type=int)
+import sys
+import cyclone.web
+import cyclone.auth
+import cyclone.escape
+from twisted.python import log
+from twisted.internet import reactor
 
 
-class Application(tornado.web.Application):
+class Application(cyclone.web.Application):
     def __init__(self):
         handlers = [
             (r"/", MainHandler),
@@ -36,44 +32,42 @@ class Application(tornado.web.Application):
             cookie_secret="32oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
             login_url="/auth/login",
         )
-        tornado.web.Application.__init__(self, handlers, **settings)
+        cyclone.web.Application.__init__(self, handlers, **settings)
 
 
-class BaseHandler(tornado.web.RequestHandler):
+class BaseHandler(cyclone.web.RequestHandler):
     def get_current_user(self):
         user_json = self.get_secure_cookie("user")
         if not user_json: return None
-        return tornado.escape.json_decode(user_json)
+        return cyclone.escape.json_decode(user_json)
 
 
 class MainHandler(BaseHandler):
-    @tornado.web.authenticated
+    @cyclone.web.authenticated
     def get(self):
-        name = tornado.escape.xhtml_escape(self.current_user["name"])
+        name = cyclone.escape.xhtml_escape(self.current_user["name"])
         self.write("Hello, " + name)
 
 
-class AuthHandler(BaseHandler, tornado.auth.GoogleMixin):
-    @tornado.web.asynchronous
+class AuthHandler(BaseHandler, cyclone.auth.GoogleMixin):
+    @cyclone.web.asynchronous
     def get(self):
         if self.get_argument("openid.mode", None):
-            self.get_authenticated_user(self.async_callback(self._on_auth))
+            self.get_authenticated_user(self._on_auth)
             return
         self.authenticate_redirect()
     
     def _on_auth(self, user):
         if not user:
-            raise tornado.web.HTTPError(500, "Google auth failed")
-        self.set_secure_cookie("user", tornado.escape.json_encode(user))
+            raise cyclone.web.HTTPError(500, "Google auth failed")
+        self.set_secure_cookie("user", cyclone.escape.json_encode(user))
         self.redirect("/")
 
 
 def main():
-    tornado.options.parse_command_line()
-    http_server = tornado.httpserver.HTTPServer(Application())
-    http_server.listen(options.port)
-    tornado.ioloop.IOLoop.instance().start()
-
+    reactor.listenTCP(8080, Application())
+    reactor.run()
 
 if __name__ == "__main__":
+    log.startLogging(sys.stdout)
     main()

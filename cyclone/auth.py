@@ -45,14 +45,15 @@ class GoogleHandler(tornado.web.RequestHandler, tornado.auth.GoogleMixin):
 
 """
 
+from twisted.python import log
+from cyclone import escape, httpclient
+
 import base64
 import binascii
 import cgi
+import functools
 import hashlib
 import hmac
-import httpclient
-import escape
-import logging
 import time
 import urllib
 import urlparse
@@ -91,9 +92,7 @@ class OpenIdMixin(object):
         args = dict((k, v[-1]) for k, v in self.request.arguments.iteritems())
         args["openid.mode"] = u"check_authentication"
         url = self._OPENID_ENDPOINT + "?" + urllib.urlencode(args)
-        http = httpclient.AsyncHTTPClient()
-        http.fetch(url, self.async_callback(
-            self._on_authentication_verified, callback))
+	httpclient.fetch(url).addCallback(self._on_authentication_verified, callback)
 
     def _openid_args(self, callback_uri, ax_attrs=[], oauth_scope=None):
         url = urlparse.urljoin(self.request.full_url(), callback_uri)
@@ -143,10 +142,10 @@ class OpenIdMixin(object):
             })
         return args
 
-    def _on_authentication_verified(self, callback, response):
+    def _on_authentication_verified(self, response, callback):
         if response.error or u"is_valid:true" not in response.body:
-            logging.warning("Invalid OpenID response: %s", response.error or
-                            response.body)
+            log.err("Invalid OpenID response: %s" % \
+		(response.error or response.body))
             callback(None)
             return
 
@@ -215,9 +214,8 @@ class OAuthMixin(object):
         """
         if callback_uri and getattr(self, "_OAUTH_NO_CALLBACKS", False):
             raise Exception("This service does not support oauth_callback")
-        http = httpclient.AsyncHTTPClient()
-        http.fetch(self._oauth_request_token_url(), self.async_callback(
-            self._on_request_token, self._OAUTH_AUTHORIZE_URL, callback_uri))
+	httpclient.fetch(self._oauth_request_token_url()).addCallback(
+	    self._on_request_token, self._OAUTH_AUTHORIZE_URL, callback_uri)
 
     def get_authenticated_user(self, callback):
         """Gets the OAuth authorized user and access token on callback.
@@ -232,18 +230,17 @@ class OAuthMixin(object):
         request_key = self.get_argument("oauth_token")
         request_cookie = self.get_cookie("_oauth_request_token")
         if not request_cookie:
-            logging.warning("Missing OAuth request token cookie")
+            log.err("Missing OAuth request token cookie")
             callback(None)
             return
         cookie_key, cookie_secret = request_cookie.split("|")
         if cookie_key != request_key:
-            logging.warning("Request token does not match cookie")
+            log.err("Request token does not match cookie")
             callback(None)
             return
         token = dict(key=cookie_key, secret=cookie_secret)
-        http = httpclient.AsyncHTTPClient()
-        http.fetch(self._oauth_access_token_url(token), self.async_callback(
-            self._on_access_token, callback))
+        httpclient.fetch(self._oauth_access_token_url(token))
+	d.addCallback(self._on_access_token, callback)
 
     def _oauth_request_token_url(self):
         consumer_token = self._oauth_consumer_token()
@@ -259,7 +256,7 @@ class OAuthMixin(object):
         args["oauth_signature"] = signature
         return url + "?" + urllib.urlencode(args)
 
-    def _on_request_token(self, authorize_url, callback_uri, response):
+    def _on_request_token(self, response, authorize_url, callback_uri):
         if response.error:
             raise Exception("Could not get request token")
         request_token = _oauth_parse_response(response.body)
@@ -287,19 +284,19 @@ class OAuthMixin(object):
         args["oauth_signature"] = signature
         return url + "?" + urllib.urlencode(args)
 
-    def _on_access_token(self, callback, response):
+    def _on_access_token(self, response, callback):
         if response.error:
-            logging.warning("Could not fetch access token")
+            log.err("Could not fetch access token")
             callback(None)
             return
         access_token = _oauth_parse_response(response.body)
-        user = self._oauth_get_user(access_token, self.async_callback(
-             self._on_oauth_get_user, access_token, callback))
+        user = self._oauth_get_user(access_token,
+             self._on_oauth_get_user, access_token, callback)
 
     def _oauth_get_user(self, access_token, callback):
         raise NotImplementedError()
 
-    def _on_oauth_get_user(self, access_token, callback, user):
+    def _on_oauth_get_user(self, user, access_token, callback):
         if not user:
             callback(None)
             return
@@ -377,9 +374,8 @@ class TwitterMixin(OAuthMixin):
         This is generally the right interface to use if you are using
         Twitter for single-sign on.
         """
-        http = httpclient.AsyncHTTPClient()
-        http.fetch(self._oauth_request_token_url(), self.async_callback(
-            self._on_request_token, self._OAUTH_AUTHENTICATE_URL, None))
+	httpclient.fetch(self._oauth_request_token_url()).addCallback(
+            self._on_request_token, self._OAUTH_AUTHENTICATE_URL, None)
 
     def twitter_request(self, path, callback, access_token=None,
                            post_args=None, **args):
@@ -431,18 +427,17 @@ class TwitterMixin(OAuthMixin):
                 url, access_token, all_args, method=method)
             args.update(oauth)
         if args: url += "?" + urllib.urlencode(args)
-        callback = self.async_callback(self._on_twitter_request, callback)
-        http = httpclient.AsyncHTTPClient()
         if post_args is not None:
-            http.fetch(url, method="POST", body=urllib.urlencode(post_args),
-                       callback=callback)
+            d = httpclient.fetch(url, method="POST", postdata=urllib.urlencode(post_args))
+	    d.addCallback(self._on_twitter_request, callback)
         else:
-            http.fetch(url, callback=callback)
+            d = httpclient.fetch(url)
+	    d.addCallback(self._on_twitter_request, callback)
     
-    def _on_twitter_request(self, callback, response):
+    def _on_twitter_request(self, response, callback):
         if response.error:
-            logging.warning("Error response %s fetching %s", response.error,
-                            response.request.url)
+            log.err("Error response %s fetching %s" % (response.error,
+                            response.request.url))
             callback(None)
             return
         callback(escape.json_decode(response.body))
@@ -455,7 +450,7 @@ class TwitterMixin(OAuthMixin):
             secret=self.settings["twitter_consumer_secret"])
 
     def _oauth_get_user(self, access_token, callback):
-        callback = self.async_callback(self._parse_user_response, callback)
+	callback = functools.partial(self._parse_user_response, callback)
         self.twitter_request(
             "/users/show/" + access_token["screen_name"],
             access_token=access_token, callback=callback)
@@ -551,18 +546,16 @@ class FriendFeedMixin(OAuthMixin):
                 url, access_token, all_args, method=method)
             args.update(oauth)
         if args: url += "?" + urllib.urlencode(args)
-        callback = self.async_callback(self._on_friendfeed_request, callback)
-        http = httpclient.AsyncHTTPClient()
         if post_args is not None:
-            http.fetch(url, method="POST", body=urllib.urlencode(post_args),
-                       callback=callback)
+            d = httpclient.fetch(url, method="POST", postdata=urllib.urlencode(post_args))
+	    d.addCallback(self._on_friendfeed_request, callback)
         else:
-            http.fetch(url, callback=callback)
+            httpclient.fetch(url).addCallback(self._on_friendfeed_request, callback)
     
-    def _on_friendfeed_request(self, callback, response):
+    def _on_friendfeed_request(self, response, callback):
         if response.error:
-            logging.warning("Error response %s fetching %s", response.error,
-                            response.request.url)
+            log.err("Error response %s fetching %s" % (response.error,
+                            response.request.url))
             callback(None)
             return
         callback(escape.json_decode(response.body))
@@ -575,7 +568,7 @@ class FriendFeedMixin(OAuthMixin):
             secret=self.settings["friendfeed_consumer_secret"])
 
     def _oauth_get_user(self, access_token, callback):
-        callback = self.async_callback(self._parse_user_response, callback)
+        callback = functools.partial(self._parse_user_response, callback)
         self.friendfeed_request(
             "/feedinfo/" + access_token["username"],
             include="id,name,description", access_token=access_token,
@@ -643,10 +636,9 @@ class GoogleMixin(OpenIdMixin, OAuthMixin):
                 break
         token = self.get_argument("openid." + oauth_ns + ".request_token", "")
         if token:
-            http = httpclient.AsyncHTTPClient()
             token = dict(key=token, secret="")
-            http.fetch(self._oauth_access_token_url(token),
-                       self.async_callback(self._on_access_token, callback))
+            d = httpclient.fetch(self._oauth_access_token_url(token))
+            d.addCallback(self._on_access_token, callback)
         else:
             OpenIdMixin.get_authenticated_user(self, callback)
 
@@ -747,7 +739,7 @@ class FacebookMixin(object):
         session = escape.json_decode(self.get_argument("session"))
         self.facebook_request(
             method="facebook.users.getInfo",
-            callback=self.async_callback(
+            callback=functools.partial(
                 self._on_get_user_info, callback, session),
             session_key=session["session_key"],
             uids=session["uid"],
@@ -795,9 +787,8 @@ class FacebookMixin(object):
         args["sig"] = self._signature(args)
         url = "http://api.facebook.com/restserver.php?" + \
             urllib.urlencode(args)
-        http = httpclient.AsyncHTTPClient()
-        http.fetch(url, callback=self.async_callback(
-            self._parse_response, callback))
+	d = httpclient.fetch(url)
+	d.addCallback(self._parse_response, callback)
 
     def _on_get_user_info(self, callback, session, users):
         if users is None:
@@ -813,20 +804,20 @@ class FacebookMixin(object):
             "session_expires": session["expires"],
         })
 
-    def _parse_response(self, callback, response):
+    def _parse_response(self, response, callback):
         if response.error:
-            logging.warning("HTTP error from Facebook: %s", response.error)
+            log.err("HTTP error from Facebook: %s" % response.error)
             callback(None)
             return
         try:
             json = escape.json_decode(response.body)
         except:
-            logging.warning("Invalid JSON from Facebook: %r", response.body)
+            log.err("Invalid JSON from Facebook: %r" % response.body)
             callback(None)
             return
         if isinstance(json, dict) and json.get("error_code"):
-            logging.warning("Facebook error: %d: %r", json["error_code"],
-                            json.get("error_msg"))
+            log.err("Facebook error: %d: %r" % \
+		(json["error_code"], json.get("error_msg")))
             callback(None)
             return
         callback(json)
