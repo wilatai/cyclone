@@ -2,7 +2,7 @@
 
 from twisted.python import log
 from twisted.internet import protocol
-from cyclone import escape, template, httpserver
+from cyclone import util, escape, template, httpserver
 
 import base64
 import binascii
@@ -795,7 +795,7 @@ class Application(protocol.ServerFactory):
             self.transforms = transforms
         self.handlers = []
         self.default_host = default_host
-        self.settings = settings
+        self.settings = util.superdict(settings)
         self.ui_modules = {}
         self.ui_methods = {}
         self._load_ui_modules(settings.get("ui_modules", {}))
