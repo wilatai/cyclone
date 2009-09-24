@@ -36,7 +36,6 @@ class RequestHandler(object):
     """
     SUPPORTED_METHODS = ("GET", "HEAD", "POST", "DELETE", "PUT")
 
-    xheaders = False
     no_keep_alive = False
     def __init__(self, application, request, transforms=None):
         self.application = application
@@ -50,7 +49,6 @@ class RequestHandler(object):
         self.ui["modules"] = _O((n, self._ui_module(n, m)) for n, m in
                                 application.ui_modules.iteritems())
         self.clear()
-	self.request.connection.xheaders = self.xheaders
 	self.request.connection.no_keep_alive = self.no_keep_alive
 
     @property

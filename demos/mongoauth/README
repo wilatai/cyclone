@@ -1,0 +1,5 @@
+User authentication using MongoDB
+http://www.mongodb.org
+
+Before using this example you need to install pymongo.
+sudo easy_install pymongo
