@@ -19,50 +19,49 @@ class HTTPConnection(basic.LineReceiver):
     delimiter = "\r\n"
 
     def connectionMade(self):
-	self._headersbuffer = []
-	self._contentbuffer = []
-	self._finishCallback = None
-	self.no_keep_alive = False
-	self.content_length = None
+        self._headersbuffer = []
+        self._contentbuffer = []
+        self._finishCallback = None
+        self.no_keep_alive = False
+        self.content_length = None
         self.request_callback = self.factory
-	self.xheaders = self.factory.settings.get('xheaders', False)
+        self.xheaders = self.factory.settings.get('xheaders', False)
         self._request = None
         self._request_finished = False
 
     def connectionLost(self, reason):
-	if self._finishCallback:
-	    self._finishCallback.callback(reason.getErrorMessage())
-	    self._finishCallback = None
+        if self._finishCallback:
+            self._finishCallback.callback(reason.getErrorMessage())
+            self._finishCallback = None
     
     def notifyFinish(self):
-	if self._finishCallback is None:
-	    self._finishCallback = defer.Deferred()
-	return self._finishCallback
+        if self._finishCallback is None:
+            self._finishCallback = defer.Deferred()
+        return self._finishCallback
 
     def lineReceived(self, line):
-	if line:
-	    self._headersbuffer.append(line+self.delimiter)
-	else:
-	    self._on_headers(''.join(self._headersbuffer))
-	    self._headersbuffer = []
+        if line:
+            self._headersbuffer.append(line+self.delimiter)
+        else:
+            self._on_headers(''.join(self._headersbuffer))
+            self._headersbuffer = []
     
     def rawDataReceived(self, data):
-	if self.content_length is not None:
-	    data, rest = data[:self.content_length], data[self.content_length:]
-	    self.content_length -= len(data)
-	else:
-	    rest = ''
+        if self.content_length is not None:
+            data, rest = data[:self.content_length], data[self.content_length:]
+            self.content_length -= len(data)
+        else:
+            rest = ''
 	
-	self._contentbuffer.append(data)
-	if self.content_length == 0:
-	    self._on_request_body(''.join(self._contentbuffer))
-	    self._contentbuffer = []
-	    self.content_length = None
-	    self.setLineMode(rest)
+        self._contentbuffer.append(data)
+        if self.content_length == 0:
+            self._on_request_body(''.join(self._contentbuffer))
+            self._contentbuffer = []
+            self.content_length = None
+            self.setLineMode(rest)
 	    
     def write(self, chunk):
         assert self._request, "Request closed"
-        #self.stream.write(chunk, self._on_write_complete)
         self.transport.write(chunk)
 
     def finish(self):
@@ -108,8 +107,8 @@ class HTTPConnection(basic.LineReceiver):
             content_length = int(content_length)
             if headers.get("Expect") == "100-continue":
                 self.transport.write("HTTP/1.1 100 (Continue)\r\n\r\n")
-	    self.content_length = content_length
-	    self.setRawMode()
+            self.content_length = content_length
+            self.setRawMode()
             return
 
         self.request_callback(self._request)
@@ -123,11 +122,11 @@ class HTTPConnection(basic.LineReceiver):
                 for name, values in arguments.iteritems():
                     values = [v for v in values if v]
                     if values:
-                        self._request.arguments.setdefault(name, []).extend(
-                            values)
+                        self._request.arguments.setdefault(name, []).extend(values)
             elif content_type.startswith("multipart/form-data"):
                 boundary = content_type[30:]
-                if boundary: self._parse_mime_body(boundary, data)
+                if boundary:
+                    self._parse_mime_body(boundary, data)
         self.request_callback(self._request)
 
     def _parse_mime_body(self, boundary, data):
@@ -197,7 +196,7 @@ class HTTPRequest(object):
 	    self.protocol = headers.get("X-Scheme", protocol) or "http"
 	else:
 	    self.remote_ip = remote_ip
-            self.protocol = protocol or "http"
+        self.protocol = protocol or "http"
         self.host = host or headers.get("Host") or "127.0.0.1"
         self.files = files or {}
         self.connection = connection
@@ -211,7 +210,8 @@ class HTTPRequest(object):
         self.arguments = {}
         for name, values in arguments.iteritems():
             values = [v for v in values if v]
-            if values: self.arguments[name] = values
+            if values:
+                self.arguments[name] = values
 
     def supports_http_1_1(self):
         """Returns True if this request supports HTTP/1.1 semantics"""
@@ -239,7 +239,7 @@ class HTTPRequest(object):
             return self._finish_time - self._start_time
 
     def notifyFinish(self):
-	return self.connection.notifyFinish()
+        return self.connection.notifyFinish()
 
     def __repr__(self):
         attrs = ("protocol", "host", "method", "uri", "version", "remote_ip",

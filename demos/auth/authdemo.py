@@ -65,7 +65,7 @@ class AuthHandler(BaseHandler, cyclone.auth.GoogleMixin):
 
 
 def main():
-    reactor.listenTCP(8080, Application())
+    reactor.listenTCP(8888, Application())
     reactor.run()
 
 if __name__ == "__main__":

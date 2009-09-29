@@ -92,7 +92,7 @@ class OpenIdMixin(object):
         args = dict((k, v[-1]) for k, v in self.request.arguments.iteritems())
         args["openid.mode"] = u"check_authentication"
         url = self._OPENID_ENDPOINT + "?" + urllib.urlencode(args)
-	httpclient.fetch(url).addCallback(self._on_authentication_verified, callback)
+        httpclient.fetch(url).addCallback(self._on_authentication_verified, callback)
 
     def _openid_args(self, callback_uri, ax_attrs=[], oauth_scope=None):
         url = urlparse.urljoin(self.request.full_url(), callback_uri)
@@ -144,8 +144,7 @@ class OpenIdMixin(object):
 
     def _on_authentication_verified(self, response, callback):
         if response.error or u"is_valid:true" not in response.body:
-            log.err("Invalid OpenID response: %s" % \
-		(response.error or response.body))
+            log.err("Invalid OpenID response: %s" % (response.error or response.body))
             callback(None)
             return
 
@@ -156,6 +155,7 @@ class OpenIdMixin(object):
                values[-1] == u"http://openid.net/srv/ax/1.0":
                 ax_ns = name[10:]
                 break
+
         def get_ax_arg(uri):
             if not ax_ns: return u""
             prefix = "openid." + ax_ns + ".type."
@@ -214,8 +214,8 @@ class OAuthMixin(object):
         """
         if callback_uri and getattr(self, "_OAUTH_NO_CALLBACKS", False):
             raise Exception("This service does not support oauth_callback")
-	httpclient.fetch(self._oauth_request_token_url()).addCallback(
-	    self._on_request_token, self._OAUTH_AUTHORIZE_URL, callback_uri)
+        httpclient.fetch(self._oauth_request_token_url()).addCallback(
+            self._on_request_token, self._OAUTH_AUTHORIZE_URL, callback_uri)
 
     def get_authenticated_user(self, callback):
         """Gets the OAuth authorized user and access token on callback.
@@ -233,6 +233,7 @@ class OAuthMixin(object):
             log.err("Missing OAuth request token cookie")
             callback(None)
             return
+
         cookie_key, cookie_secret = request_cookie.split("|")
         if cookie_key != request_key:
             log.err("Request token does not match cookie")
@@ -240,7 +241,7 @@ class OAuthMixin(object):
             return
         token = dict(key=cookie_key, secret=cookie_secret)
         httpclient.fetch(self._oauth_access_token_url(token))
-	d.addCallback(self._on_access_token, callback)
+        d.addCallback(self._on_access_token, callback)
 
     def _oauth_request_token_url(self):
         consumer_token = self._oauth_consumer_token()
@@ -374,7 +375,7 @@ class TwitterMixin(OAuthMixin):
         This is generally the right interface to use if you are using
         Twitter for single-sign on.
         """
-	httpclient.fetch(self._oauth_request_token_url()).addCallback(
+        httpclient.fetch(self._oauth_request_token_url()).addCallback(
             self._on_request_token, self._OAUTH_AUTHENTICATE_URL, None)
 
     def twitter_request(self, path, callback, access_token=None,
@@ -429,10 +430,10 @@ class TwitterMixin(OAuthMixin):
         if args: url += "?" + urllib.urlencode(args)
         if post_args is not None:
             d = httpclient.fetch(url, method="POST", postdata=urllib.urlencode(post_args))
-	    d.addCallback(self._on_twitter_request, callback)
+            d.addCallback(self._on_twitter_request, callback)
         else:
             d = httpclient.fetch(url)
-	    d.addCallback(self._on_twitter_request, callback)
+            d.addCallback(self._on_twitter_request, callback)
     
     def _on_twitter_request(self, response, callback):
         if response.error:
@@ -450,7 +451,7 @@ class TwitterMixin(OAuthMixin):
             secret=self.settings["twitter_consumer_secret"])
 
     def _oauth_get_user(self, access_token, callback):
-	callback = functools.partial(self._parse_user_response, callback)
+        callback = functools.partial(self._parse_user_response, callback)
         self.twitter_request(
             "/users/show/" + access_token["screen_name"],
             access_token=access_token, callback=callback)
@@ -548,7 +549,7 @@ class FriendFeedMixin(OAuthMixin):
         if args: url += "?" + urllib.urlencode(args)
         if post_args is not None:
             d = httpclient.fetch(url, method="POST", postdata=urllib.urlencode(post_args))
-	    d.addCallback(self._on_friendfeed_request, callback)
+            d.addCallback(self._on_friendfeed_request, callback)
         else:
             httpclient.fetch(url).addCallback(self._on_friendfeed_request, callback)
     
@@ -787,8 +788,8 @@ class FacebookMixin(object):
         args["sig"] = self._signature(args)
         url = "http://api.facebook.com/restserver.php?" + \
             urllib.urlencode(args)
-	d = httpclient.fetch(url)
-	d.addCallback(self._parse_response, callback)
+        d = httpclient.fetch(url)
+        d.addCallback(self._parse_response, callback)
 
     def _on_get_user_info(self, callback, session, users):
         if users is None:
