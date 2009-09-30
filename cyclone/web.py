@@ -617,7 +617,6 @@ class RequestHandler(object):
             callback = functools.partial(callback, *args, **kwargs)
         def wrapper(*args, **kwargs):
             try:
-                log.msg("CALLING CALLBACK")
                 return callback(*args, **kwargs)
             except Exception, e:
                 if self._headers_written:
