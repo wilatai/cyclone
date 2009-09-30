@@ -606,6 +606,26 @@ class RequestHandler(object):
         else:
             return base + "/static/" + path
 
+    def async_callback(self, callback, *args, **kwargs):
+        """Wrap callbacks with this if they are used on asynchronous requests.
+
+        Catches exceptions and properly finishes the request.
+        """
+        if callback is None:
+            return None
+        if args or kwargs:
+            callback = functools.partial(callback, *args, **kwargs)
+        def wrapper(*args, **kwargs):
+            try:
+                log.msg("CALLING CALLBACK")
+                return callback(*args, **kwargs)
+            except Exception, e:
+                if self._headers_written:
+                    log.err("Exception after headers written: %s" % str(e))
+                else:
+                    self._handle_request_exception(e)
+        return wrapper
+
     def require_setting(self, name, feature="this feature"):
         """Raises an exception if the given app setting is not defined."""
         if not self.application.settings.get(name):
