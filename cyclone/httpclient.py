@@ -17,5 +17,10 @@ class HTTPClientFactory(client.HTTPClientFactory):
             ))
 
 def fetch(url, contextFactory=None, *args, **kwargs):
-    return client._makeGetterFactory(url, HTTPClientFactory,
+    def wrapper(error):
+        return Page(error=error.getErrorMessage())
+
+    d = client._makeGetterFactory(url, HTTPClientFactory,
         contextFactory=contextFactory, *args, **kwargs).deferred
+    d.addErrback(wrapper)
+    return d
