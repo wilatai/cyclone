@@ -391,7 +391,7 @@ class RequestHandler(object):
             self.request.write(headers + chunk)
 
     def notifyFinish(self):
-	return self.request.notifyFinish()
+        return self.request.notifyFinish()
 
     def finish(self, chunk=None):
         """Finishes this response, ending the HTTP request."""
