@@ -1,7 +1,7 @@
 # coding: utf-8
 
 from twisted.python import log
-from twisted.internet import protocol
+from twisted.internet import defer, protocol
 from cyclone import util, escape, template, httpserver
 
 import base64
@@ -25,6 +25,7 @@ import types
 import urllib
 import urlparse
 import uuid
+import xmlrpclib
 
 
 class RequestHandler(object):
@@ -698,6 +699,81 @@ class RequestHandler(object):
 
     def _ui_method(self, method):
         return lambda *args, **kwargs: method(self, *args, **kwargs)
+
+class XmlrpcRequestHandler(RequestHandler):
+    FAILURE = 8002
+    NOT_FOUND = 8001
+    separator = "."
+    allowNone = False
+
+    def __init__(self, application, request, transforms=None):
+        RequestHandler.__init__(self, application, request, transforms)
+        #self.subHandlers = {}
+
+    #def putSubHandler(self, prefix, handler):
+    #    self.subHandlers[prefix] = handler
+
+    #def getSubHandler(self, prefix):
+    #    return self.subHandlers.get(prefix, None)
+
+    #def getSubHandlerPrefixes(self):
+    #    return self.subHandlers.keys()
+
+    def post(self):
+        self.set_header("Content-Type", "text/xml")
+        try:
+            args, functionPath = xmlrpclib.loads(self.request.body)
+        except Exception, e:
+            f = xmlrpclib.Fault(self.FAILURE, "can't deserialize input: %s" % e)
+            self._cbRender(f)
+        else:
+            try:
+                function = self._getFunction(functionPath)
+            except xmlrpclib.Fault, f:
+                self._cbRender(f)
+            else:
+                d = defer.maybeDeferred(function, *args)
+                d.addCallback(self._cbRender)
+                d.addErrback(self._ebRender)
+
+    def _getFunction(self, functionPath):
+        if functionPath.find(self.separator) != -1:
+            prefix, functionPath = functionPath.split(self.separator, 1)
+            handler = self.getSubHandler(prefix)
+            if handler is None:
+                raise xmlrpclib.Fault(self.NOT_FOUND,
+                    "no such subHandler %s" % prefix)
+            return self._getFunction(functionPath)
+
+        f = getattr(self, "xmlrpc_%s" % functionPath, None)
+        if f is None:
+            raise xmlrpclib.Fault(self.NOT_FOUND,
+                "function %s not found" % functionPath)
+        elif not callable(f):
+            raise xmlrpclib.Fault(self.NOT_FOUND,
+                "function %s not callable" % functionPath)
+        else:
+            return f
+
+    def _cbRender(self, result):
+        if not isinstance(result, xmlrpclib.Fault):
+            result = (result,)
+
+        try:
+            s = xmlrpclib.dumps(result,
+                methodresponse=True, allow_none=self.allowNone)
+        except Exception, e:
+            f = Fault(self.FAILURE, "can't serialize output: %s" % e)
+            s = xmlrpclib.dumps(f,
+                methodresponse=True, allow_none=self.allowNone)
+
+        self.write(s)
+        self.finish()
+
+    def _ebRender(self, failure):
+        if isinstance(failure.value, xmlrpclib.Fault):
+            return failure.value
+        return xmlrpclib.Fault(self.FAILURE, "error")
 
 
 def asynchronous(method):
