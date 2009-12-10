@@ -61,7 +61,7 @@ class LogoutHandler(BaseHandler):
 
 class Application(cyclone.web.Application):
     def __init__(self):
-        mongo = Connection() # mongodb connection
+        mongo = ConnectionPool(defer=False) # mongodb connection
         handlers = [
             (r"/", MainHandler),
             (r"/auth/login", LoginHandler),
