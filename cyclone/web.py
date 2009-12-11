@@ -417,9 +417,9 @@ class RequestHandler(object):
                 content_length = sum(len(part) for part in self._write_buffer)
                 self.set_header("Content-Length", content_length)
 
-	self.flush(include_footers=True)
-	self.request.finish()
-	self._log()
+        self.flush(include_footers=True)
+        self.request.finish()
+        self._log()
         self._finished = True
 
     def send_error(self, status_code=500):
@@ -645,11 +645,19 @@ class RequestHandler(object):
                 self.check_xsrf_cookie()
             self.prepare()
             if not self._finished:  
-                getattr(self, self.request.method.lower())(*args, **kwargs)
-                if self._auto_finish and not self._finished:
-                    self.finish()
+                function = getattr(self, self.request.method.lower())
+                d = defer.maybeDeferred(function, *args, **kwargs)
+                d.addCallback(self._execute_success)
+                d.addErrback(self._execute_failure)
         except Exception, e:
             self._handle_request_exception(e)
+
+    def _execute_success(self, ign):
+        if self._auto_finish and not self._finished:
+            self.finish()
+
+    def _execute_failure(self, err):
+        self._handle_request_exception(err.value)
 
     def _generate_headers(self):
         for transform in self._transforms:
@@ -672,11 +680,11 @@ class RequestHandler(object):
 
     def _handle_request_exception(self, e):
         if isinstance(e, HTTPError):
-            if e.log_message:
-                format = "%d %s: " + e.log_message
-                args = [e.status_code, self._request_summary()] + list(e.args)
-		msg = lambda *args: format % args
-                log.err(msg(*args))
+            #if e.log_message:
+            #    format = "%d %s: " + e.log_message
+            #    args = [e.status_code, self._request_summary()] + list(e.args)
+            #    msg = lambda *args: format % args
+            #    log.err(msg(*args))
             if e.status_code not in httplib.responses:
                 log.err("Bad HTTP status code: %d" % e.status_code)
                 self.send_error(500)
@@ -684,7 +692,7 @@ class RequestHandler(object):
                 self.send_error(e.status_code)
         else:
             log.err("Uncaught exception %s :: %r :: %s" % (self._request_summary(),
-                          self.request, e))
+                    self.request, e))
             self.send_error(500)
 
     def _ui_module(self, name, module):
