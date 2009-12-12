@@ -180,6 +180,7 @@ class RequestHandler(object):
                 timestamp, localtime=False, usegmt=True)
         if path:
             new_cookie[name]["path"] = path
+        return value
 
     def clear_cookie(self, name, path="/", domain=None):
         """Deletes the cookie with the given name."""
@@ -205,7 +206,7 @@ class RequestHandler(object):
         value = base64.b64encode(value)
         signature = self._cookie_signature(value, timestamp)
         value = "|".join([value, timestamp, signature])
-        self.set_cookie(name, value, expires_days=expires_days, **kwargs)
+        return self.set_cookie(name, value, expires_days=expires_days, **kwargs)
 
     def get_secure_cookie(self, name):
         """Returns the given signed cookie if it validates, or None."""
