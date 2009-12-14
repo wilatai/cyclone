@@ -94,9 +94,15 @@ class HTTPConnection(basic.LineReceiver):
     def _on_headers(self, data):
         eol = data.find("\r\n")
         start_line = data[:eol]
-        method, uri, version = start_line.split(" ")
+        try:
+            method, uri, version = start_line.split(" ")
+        except:
+            log.err("Malformed HTTP request: %s" % repr(start_line)[:100])
+            return self.transport.loseConnection()
         if not version.startswith("HTTP/"):
-            raise Exception("Malformed HTTP version in HTTP Request-Line")
+            #raise Exception("Malformed HTTP version in HTTP Request-Line")
+            log.err("Malformed HTTP version in HTTP Request-Line: %s" % repr(start_line)[:100])
+            return self.transport.loseConnection()
         headers = HTTPHeaders.parse(data[eol:])
         self._request = HTTPRequest(
             connection=self, method=method, uri=uri, version=version,
