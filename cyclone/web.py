@@ -768,8 +768,12 @@ class XmlrpcRequestHandler(RequestHandler):
 
     def _ebRender(self, failure):
         if isinstance(failure.value, xmlrpclib.Fault):
-            return failure.value
-        return xmlrpclib.Fault(self.FAILURE, "error")
+            s = failure.value
+        else:
+            s = xmlrpclib.Fault(self.FAILURE, "error")
+
+        self.write(xmlrpclib.dumps(s, methodresponse=True))
+        self.finish()
 
 class JsonrpcRequestHandler(RequestHandler):
     def post(self):
