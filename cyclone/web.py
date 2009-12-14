@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from twisted.python import log
+from twisted.python import log, failure
 from twisted.internet import defer, protocol
 from cyclone import util, escape, template, httpserver
 
@@ -715,19 +715,6 @@ class XmlrpcRequestHandler(RequestHandler):
     separator = "."
     allowNone = False
 
-    def __init__(self, application, request, transforms=None):
-        RequestHandler.__init__(self, application, request, transforms)
-        #self.subHandlers = {}
-
-    #def putSubHandler(self, prefix, handler):
-    #    self.subHandlers[prefix] = handler
-
-    #def getSubHandler(self, prefix):
-    #    return self.subHandlers.get(prefix, None)
-
-    #def getSubHandlerPrefixes(self):
-    #    return self.subHandlers.keys()
-
     def post(self):
         self.set_header("Content-Type", "text/xml")
         try:
@@ -783,6 +770,37 @@ class XmlrpcRequestHandler(RequestHandler):
         if isinstance(failure.value, xmlrpclib.Fault):
             return failure.value
         return xmlrpclib.Fault(self.FAILURE, "error")
+
+class JsonrpcRequestHandler(RequestHandler):
+    def post(self):
+        try:
+            req = escape.json_decode(self.request.body)
+            method = req["method"]
+            assert isinstance(method, types.StringTypes), type(method)
+            params = req["params"]
+            assert isinstance(params, (types.ListType, types.TupleType)), type(params)
+            jsonid = req["id"]
+            assert isinstance(jsonid, types.IntType), type(jsonid)
+        except Exception, e:
+            log.err("bad request: %s" % str(e))
+            raise HTTPError(400)
+
+        function = getattr(self, "jsonrpc_%s" % method, None)
+        if callable(function):
+            d = defer.maybeDeferred(function, *params)
+            d.addBoth(self._cbResult, jsonid)
+        else:
+            self._cbResult(AttributeError("method not found: %s" % method), jsonid)
+
+    def _cbResult(self, result, jsonid):
+        if isinstance(result, failure.Failure):
+            error = str(result.value)
+            result = None
+        else:
+            error = None
+        json_data = escape.json_encode({"result":result, "error":error, "id":jsonid})
+        self.write(json_data)
+        self.finish()
 
 
 def asynchronous(method):

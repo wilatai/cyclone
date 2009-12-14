@@ -5,5 +5,6 @@ import xmlrpclib
 
 srv = xmlrpclib.Server("http://localhost:8888/xmlrpc")
 print "echo:", srv.echo("hello world!")
-print "sorted:", srv.sort(["foo", "bar"])
+print "sort:", srv.sort(["foo", "bar"])
+print "count:", srv.count(["foo", "bar"])
 print "geoip_lookup:\n", srv.geoip_lookup("google.com")
