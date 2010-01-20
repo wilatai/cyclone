@@ -10,8 +10,7 @@ class BaseHandler(cyclone.web.RequestHandler):
     def get_user_locale(self):
         # could get it from self.current_user.prefs["language"]
         # or any other cookie
-        lang = getattr(self, "user_language", None)
-        return lang and cyclone.locale.get(lang) or None
+        return None
 
 
 class IndexHandler(BaseHandler):
@@ -26,7 +25,10 @@ class IndexHandler(BaseHandler):
         apples = self.get_argument("apples")
         apples = apples.isdigit() and int(apples) or 1
 
-        self.user_language = language
+        # set self._locale OR use get_user_locale()
+        self._locale = cyclone.locale.get(language)
+
+        # render html
         self.get(apples)
 
 
