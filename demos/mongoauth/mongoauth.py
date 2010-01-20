@@ -3,10 +3,10 @@
 
 import sys
 import hashlib
+import txmongo
 import cyclone.web
 from twisted.python import log
-from twisted.internet import threads, reactor
-from pymongo.connection import Connection
+from twisted.internet import defer, reactor
 
 class BaseHandler(cyclone.web.RequestHandler):
     def get_current_user(self):
@@ -29,26 +29,16 @@ class LoginHandler(BaseHandler):
             </body></html>
         """ % (err == "invalid" and "invalid username or password" or ""))
 
+    @defer.inlineCallbacks
     @cyclone.web.asynchronous
     def post(self):
         u, p = self.get_argument("u"), self.get_argument("p")
 
-        # defer the authentication to a thread, to avoid blocking
-        # because pymongo is not asynchronous
-        d = threads.deferToThread(self._auth_user, u, p)
-        d.addCallback(self._on_auth)
-
-    def _auth_user(self, u, p):
-        try:
-            users = self.settings.mongo.users # users collection
-            if users.find_one({"u":u, "p":hashlib.md5(p).hexdigest()}):
-                return u
-        except: pass
-
-    def _on_auth(self, user):
-        # user is either the username or None
+        password = hashlib.md5(p).hexdigest()
+        user = yield self.settings.mongo.mydb.users.find_one({"u":u, "p":password}, fields=["u"])
         if user:
-            self.set_secure_cookie("user", user)
+            user["_id"] = str(user["_id"])
+            self.set_secure_cookie("user", cyclone.escape.json_encode(user))
             self.redirect("/")
         else:
             self.redirect("/auth/login?e=invalid")
@@ -61,7 +51,6 @@ class LogoutHandler(BaseHandler):
 
 class Application(cyclone.web.Application):
     def __init__(self):
-        mongo = ConnectionPool(defer=False) # mongodb connection
         handlers = [
             (r"/", MainHandler),
             (r"/auth/login", LoginHandler),
@@ -70,7 +59,7 @@ class Application(cyclone.web.Application):
         settings = dict(
             login_url="/auth/login",
             cookie_secret="32oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
-            mongo=mongo.cyclone, # cyclone database
+            mongo=txmongo.lazyMongoConnectionPool(),
         )
         cyclone.web.Application.__init__(self, handlers, **settings)
 

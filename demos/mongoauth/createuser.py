@@ -2,15 +2,20 @@
 # coding: utf-8
 
 import hashlib
-from pymongo.connection import Connection
+import txmongo
+from twisted.internet import defer, reactor
 
-conn = Connection() # localhost
-mydb = conn.cyclone # cyclone database
-users = mydb.users  # users collection
+@defer.inlineCallbacks
+def main():
+    mongo = yield txmongo.MongoConnection()
 
-admin = users.find_one({"u": "cyclone"})
-if not admin:
-    print "creating user 'cyclone' with password 'cyclone'..."
-    users.insert({"u":"cyclone", "p":hashlib.md5("cyclone").hexdigest()})
-else:
-    print "user 'cyclone' with password 'cyclone' already exists..."
+    admin = yield mongo.mydb.users.find_one({"u":"cyclone"})
+    if admin:
+        print "user 'cyclone' with password 'cyclone' already exists: %s" % admin["_id"]
+    else:
+        objid = yield mongo.mydb.users.insert({"u":"cyclone", "p":hashlib.md5("cyclone").hexdigest()}, safe=True)
+        print "user 'cyclone' with password 'cyclone' has been created: %s" % objid
+
+if __name__ == "__main__":
+    main().addCallback(lambda ign: reactor.stop())
+    reactor.run()
