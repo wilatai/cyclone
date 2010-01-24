@@ -1,0 +1,295 @@
+=======
+Cyclone
+=======
+:Author: Alexandre Fiori
+
+About
+=====
+
+Cyclone is a low-level network toolkit, which provides support for HTTP 1.1 in an API very similar to the one implemented by the `Tornado <http://tornadoweb.org>`_ web server - which was developed by `FriendFeed <http://friendfeed.com>`_ and later released as open source / free software by `Facebook <http://facebook.com>`_.
+
+
+Key differences between Cyclone and Tornado
+-------------------------------------------
+
+- Cyclone is based on `Twisted <http://twistedmatrix.com>`_, hence it may be used as a webservice protocol for interconnection with any other protocol implemented in Twisted.
+- Localization is based upon the standard `Gettext <http://www.gnu.org/software/gettext/>`_ instead of the CSV implementation in the original Tornado. Moreover, it supports pluralization exactly like Tornado does.
+- It ships with an asynchronous HTTP client based on `TwistedWeb <http://twistedmatrix.com/trac/wiki/TwistedWeb>`_, however, it's fully compatible with one provided by Tornado - which is based on `PyCurl <http://pycurl.sourceforge.net/>`_. (The HTTP server code is NOT based on TwistedWeb, for several reasons)
+- Native support for XMLRPC and JsonRPC.
+
+
+Advantages of being a Twisted Protocol
+--------------------------------------
+
+- Easy deployment of applications, using `twistd <http://twistedmatrix.com/documents/current/core/howto/basics.html>`_.
+- RDBM support via: `twisted.enterprise.adbapi <http://twistedmatrix.com/documents/current/core/howto/rdbms.html>`_.
+- NoSQL support for MongoDB (`TxMongo <http://github.com/fiorix/mongo-async-python-driver>`_) and Redis (`TxRedisAPI <http://github.com/fiorix/txredisapi>`_).
+- May combine many more functionality within the webserver: sending emails, communicating with message brokers, etc...
+
+
+Tips and Tricks
+===============
+
+As a clone, the API implemented in Cyclone is almost the same of Tornado. Therefore you may use the `Tornado Documentation <http://www.tornadoweb.org/documentation>`_ for stuff like templates and so on.
+
+The snippets below will show some tips and tricks regarding the few differences between the two.
+
+Hello World
+-----------
+
+::
+
+    #!/usr/bin/env python
+    # coding: utf-8
+
+    import sys
+    import cyclone.web
+    from twisted.python import log
+    from twisted.internet import reactor
+
+    class IndexHandler(cyclone.web.RequestHandler):
+        def get(self):
+            self.write("hello world")
+
+    class Application(cyclone.web.Application):
+        def __init__(self):
+            handlers = [
+                (r"/", IndexHandler),
+            ]
+
+            settings = {
+                "static_path": "./static",
+                "template_path": "./template",
+            }
+
+            cyclone.web.Application.__init__(self, handlers, **settings)
+
+    if __name__ == "__main__":
+        log.startLogging(sys.stdout)
+        reactor.listenTCP(8888, Application())
+        reactor.run()
+
+
+Twisted Application
+-------------------
+
+The advantage of being a Twisted Application is that you don't need to care about basic daemon features like forking, creating pid files, changing application's user and group permissions, and selecting the proper reactor within the code.
+
+Instead, the application may be run by ``twistd``, as follows::
+
+    for testing:
+    /usr/bin/twistd --nodaemon --python=foobar.tac
+
+    for production:
+    /usr/bin/twistd --pidfile=/var/run/foobar.pid \
+                    --logfile=/var/log/foobar.log \
+                    --uid=nobody --gid=nobody \
+                    --reactor=epoll \
+                    --python=foobar.tac
+
+Following is the *Hello World* as a twisted application::
+
+    # coding: utf-8
+    # twisted application: foobar.tac
+
+    import cyclone.web
+    from twisted.application import service, internet
+
+    class IndexHandler(cyclone.web.RequestHandler):
+        def get(self):
+            self.write("hello world")
+
+    foobar = cyclone.web.Application([(r"/", IndexHandler)])
+
+    application = service.Application("foobar")
+    internet.TCPServer(8888, foobar(),
+        interface="127.0.0.1").setServiceParent(application)
+
+
+Localization
+------------
+
+The ``cyclone.locale`` provides an API similar to ``tornado.locale``, however, instead of using CSV files for translating strings like Tornado does, Cyclone uses the standard Python ``gettext`` module.
+
+Because of that, there is *one* extra option that may be passed to ``cyclone.locale.load_translations(path, domain="cyclone")``, which the is the gettext's domain. The default domain is *cyclone*.
+
+Following is a step-by-step guide to implement localization in any Cyclone application:
+
+1. Create a python script or twisted application with translatable strings::
+
+    # coding: utf-8
+    # twisted application: foobar.tac
+
+    import cyclone.web
+    import cyclone.locale
+    from twisted.application import service, internet
+
+    class BaseHandler(cyclone.web.RequestHandler):
+        def get_user_locale(self):
+            lang = self.get_cookie("lang")
+            return cyclone.locale.get(lang)
+
+    class IndexHandler(BaseHandler):
+        def get(self):
+            self.render("index.html")
+
+        def post(self):
+            _ = self.locale
+            name = self.get_argument("name")
+            self.write(_("the name is: %s" % name))
+
+    class LangHandler(cyclone.web.RequestHandler):
+        def get(self, lang):
+            if lang in cyclone.locale.get_supported_locales():
+                self.set_cookie("lang", lang)
+            self.redirect("/")
+
+    class Application(cyclone.web.Application):
+        def __init__(self):
+            handlers = [
+                (r"/", IndexHandler),
+                (r"/lang/(.+)", LangHandler),
+            ]
+
+            settings = {
+                "static_path": "./static",
+                "template_path": "./template",
+            }
+
+            cyclone.locale.load_translations("./locale", "foobar")
+            cyclone.web.Application.__init__(self, handlers, **settings)
+
+    application = service.Application("foobar")
+    internet.TCPServer(8888, Application(),
+        interface="127.0.0.1").setServiceParent(application)
+
+2. Create a file in ``./template/index.html`` with translatable strings::
+
+    <html>
+    <body>
+        <form action="/" method="post">
+        <p>{{ _("write someone's name:") }}</p>
+        <input type="text" value="name">
+        <input type="submit" value="{{ _('send') }}">
+        </form>
+
+        <br>
+        <p>{{ _("change language:") }}</p>
+        <p><a href="/lang/en_US">English (US)</a></p>
+        <p><a href="/lang/pt_BR">Portuguese (BR)</a></p>
+    </body>
+    </html>
+
+3. Generate PO translatable file from the source code, using ``xgettext``:
+
+    You will notice that ``xgettext`` cannot parse HTML properly. It was
+    first designed to parse C files, and now it supports many other
+    languages including Python.
+
+    In order to parse lines like ``<input type="submit" value="{{ _('send') }}">``,
+    you'll need an extra script to pre-process the files.
+
+    Here's what you can use as ``fix.py``::
+        
+        #!/usr/bin/env python
+        # coding: utf-8
+        # fix.py
+
+        import re, sys
+
+        if __name__ == "__main__":
+            try:
+                filename = sys.argv[1]
+                assert filename != "-"
+                fd = open(filename)
+            except:
+                fd = sys.stdin
+
+            line_re = re.compile(r"""['"]{{|}}['"] """)
+            for line in fd:
+                line = line_re.sub(r"", line)
+                sys.stdout.write(line)
+            fd.close()
+
+    Then, call ``xgettext`` to generate the PO translatable file::
+
+        cat foobar.tac template/index.html | python fix.py | \
+            xgettext --language=Python --keyword=_:1,2 -d foobar
+
+    This will create a file named ``foobar.po``, which needs to be
+    translated, then compiled into an MO file::
+
+        vi foobar.po
+        (translate everything, :wq)
+
+        mkdir -p ./locale/pt_BR/LC_MESSAGES/
+        msgfmt foobar.po -o ./locale/pt_BR/LC_MESSAGES/foobar.mo
+
+4. Finally, test the internationalized application::
+
+    twistd -ny foobar.tac
+
+There is also a complete example with pluralization in `demos/locale <http://github.com/fiorix/tornado/tree/master/demos/locale>`_.
+
+Authenticated and Asynchronous decorators
+-----------------------------------------
+
+Tornado provides decorator functions for asynchronous and authenticated
+methods. Obviously, they're also implemented in Cyclone, and yet more
+powerful when combined with a famous Twisted decorator: ``defer.inlineCallbacks``.
+
+The ``cyclone.web.authenticated`` decorator may be combined with ``defer.inlineCallbacks``,
+however, there's a basic rule to use them together. Considering that the authenticated
+decorator will check user credentials, and, depending on the result, it will
+continue processing the request OR redirect the request to the login page,
+it has to be used *before* the ``defer.inlineCallbacks`` to function properly::
+
+    class IndexHandler(cyclone.web.RequestHandler):
+        @cyclone.web.authenticated
+        @defer.inlineCalbacks
+        def get(self):
+            result = yield something()
+            self.write(result)
+
+On the other hand, the ``cyclone.web.asynchronous`` decorator will keep the request open
+until you explicitly call ``self.finish()`` later on. Of course, it may also be combined 
+with ``defer.inlineCallbacks``, but it MUST be placed *after* to function properly::
+
+    class Indexhandler(cyclone.web.RequestHandler):
+        @defer.inlineCallbacks
+        @cyclone.web.asynchronous
+        def get(self):
+            result = yield something()
+            self.finish(result)
+
+Of course, you may combine the three decorators to have the most powerful and simple code
+in Cyclone, like this::
+
+    class Indexhandler(cyclone.web.RequestHandler):
+        @cyclone.web.authenticated
+        @defer.inlineCallbacks
+        @cyclone.web.asynchronous
+        def get(self):
+            try:
+                result = yield mongo.collection.find_one({"foo":"bar"})
+            except:
+                self.finish("error or something")
+                defer.returnValue(None)
+
+            if not result:
+                raise cyclone.web.HTTPError(404, "not found")
+
+            self.finish(cyclone.escape.json_encode(result))
+
+Applications using Cyclone
+==========================
+
+We've being using Cyclone for all of our private projects at `nuswit.com <http://nuswit.com>`_.
+Now that it's very stable and responsive, we decided to make it freely available for the public,
+and hope it become more popular in the Python/Twisted community.
+
+The source code ships with `examples and demos <http://github.com/fiorix/tornado/tree/master/demos/>`_.
+
+Also, we've found that some people is already using it:
+
+- `RestMQ <http://github.com/gleicon/restmq>`_: a redis based message queue
