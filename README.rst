@@ -8,7 +8,6 @@ About
 
 Cyclone is a low-level network toolkit, which provides support for HTTP 1.1 in an API very similar to the one implemented by the `Tornado <http://tornadoweb.org>`_ web server - which was developed by `FriendFeed <http://friendfeed.com>`_ and later released as open source / free software by `Facebook <http://facebook.com>`_.
 
-
 Key differences between Cyclone and Tornado
 -------------------------------------------
 
@@ -16,7 +15,6 @@ Key differences between Cyclone and Tornado
 - Localization is based upon the standard `Gettext <http://www.gnu.org/software/gettext/>`_ instead of the CSV implementation in the original Tornado. Moreover, it supports pluralization exactly like Tornado does.
 - It ships with an asynchronous HTTP client based on `TwistedWeb <http://twistedmatrix.com/trac/wiki/TwistedWeb>`_, however, it's fully compatible with one provided by Tornado - which is based on `PyCurl <http://pycurl.sourceforge.net/>`_. (The HTTP server code is NOT based on TwistedWeb, for several reasons)
 - Native support for XMLRPC and JsonRPC.
-
 
 Advantages of being a Twisted Protocol
 --------------------------------------
@@ -69,7 +67,6 @@ Hello World
         reactor.listenTCP(8888, Application())
         reactor.run()
 
-
 Twisted Application
 -------------------
 
@@ -104,7 +101,6 @@ Following is the *Hello World* as a twisted application::
     application = service.Application("foobar")
     internet.TCPServer(8888, foobar(),
         interface="127.0.0.1").setServiceParent(application)
-
 
 Localization
 ------------
@@ -280,6 +276,7 @@ in Cyclone, like this::
                 raise cyclone.web.HTTPError(404, "not found")
 
             self.finish(cyclone.escape.json_encode(result))
+
 
 Applications using Cyclone
 ==========================
