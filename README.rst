@@ -165,7 +165,7 @@ Following is a step-by-step guide to implement localization in any Cyclone appli
     <body>
         <form action="/" method="post">
         <p>{{ _("write someone's name:") }}</p>
-        <input type="text" value="name">
+        <input type="text" name="name">
         <input type="submit" value="{{ _('send') }}">
         </form>
 
