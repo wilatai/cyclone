@@ -130,7 +130,7 @@ Following is a step-by-step guide to implement localization in any Cyclone appli
             self.render("index.html")
 
         def post(self):
-            _ = self.locale
+            _ = self.locale.translate
             name = self.get_argument("name")
             self.write(_("the name is: %s" % name))
 
