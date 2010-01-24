@@ -1,7 +1,6 @@
 =======
 Cyclone
 =======
-:Author: Alexandre Fiori
 
 About
 =====
@@ -225,7 +224,7 @@ Following is a step-by-step guide to implement localization in any Cyclone appli
 
     twistd -ny foobar.tac
 
-There is also a complete example with pluralization in `demos/locale <http://github.com/fiorix/tornado/tree/master/demos/locale>`_.
+There is also a complete example with pluralization in `demos/locale <http://github.com/fiorix/cyclone/tree/master/demos/locale>`_.
 
 Authenticated and Asynchronous decorators
 -----------------------------------------
@@ -285,7 +284,7 @@ We've being using Cyclone for all of our private projects at `nuswit.com <http:/
 Now that it's very stable and responsive, we decided to make it freely available for the public,
 and hope it become more popular in the Python/Twisted community.
 
-The source code ships with `examples and demos <http://github.com/fiorix/tornado/tree/master/demos/>`_.
+The source code ships with `examples and demos <http://github.com/fiorix/cyclone/tree/master/demos/>`_.
 
 Also, we've found that some people is already using it:
 
