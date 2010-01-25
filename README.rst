@@ -276,6 +276,54 @@ in Cyclone, like this::
 
             self.finish(cyclone.escape.json_encode(result))
 
+More options and tricks
+-----------------------
+
+- Keep-Alive
+
+    Because of the HTTP 1.1 support, sockets aren't always closed when you call
+    ``self.finish()`` in a RequestHandler. Cyclone let you enforce that by setting
+    the ``no_keep_alive`` attribute attribute in some of your RequestHandlers::
+
+        class IndexHandler(cyclone.web.RequestHandler):
+            no_keep_alive = True
+            def get(self):
+                ...
+
+- Socket closed notification
+
+    One of the great features of TwistedWeb is the ``request.notifyFinish()``,
+    which is also available in Cyclone.
+    This method returns a deferred which is fired when the request socket
+    is closed, by either ``self.finish()``, someone closing their browser
+    while receiving data, or closing the connection of a Comet request::
+
+        class IndexHandler(cyclone.web.RequestHandler):
+            def get(self):
+                ...
+                d = self.notifyFinish()
+                d.addCallback(remove_from_comet_handlers_list)
+
+- HTTP X-Headers
+
+    When running a Cyclone-based application behind `Nginx <http://nginx.org/en/>`_, 
+    it's very important to make it automatically use X-Real-Ip and X-Scheme HTTP
+    headers. In order to make Cyclone recognize those headers, the option ``xheaders=True``
+    must be set in the Application settings::
+
+        class Application(cyclone.web.Application):
+            def __init__(self):
+                handlers = [
+                    (r"/", IndexHandler),
+                ]
+
+                settings = {
+                    "xheaders": True
+                    "static_path": "./static",
+                }
+
+                cyclone.web.Application.__init__(self, handlers, **settings)
+
 
 Applications using Cyclone
 ==========================
