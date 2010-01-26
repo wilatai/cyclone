@@ -1,7 +1,3 @@
-=======
-Cyclone
-=======
-
 About
 =====
 
@@ -23,6 +19,10 @@ Advantages of being a Twisted Protocol
 - NoSQL support for MongoDB (`TxMongo <http://github.com/fiorix/mongo-async-python-driver>`_) and Redis (`TxRedisAPI <http://github.com/fiorix/txredisapi>`_).
 - May combine many more functionality within the webserver: sending emails, communicating with message brokers, etc...
 
+Benchmarks
+----------
+
+Check out the `benchmarks <http://wiki.github.com/fiorix/cyclone/benchmarks>`_ page.
 
 Tips and Tricks
 ===============
