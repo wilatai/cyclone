@@ -42,7 +42,7 @@ class JsonrpcHandler(cyclone.web.JsonrpcRequestHandler):
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
     def jsonrpc_geoip_lookup(self, address):
-        result = yield cyclone.httpclient.fetch("http://freegeoip.net/xml/%s" % address.encode("utf-8"))
+        result = yield cyclone.httpclient.fetch("http://freegeoip.net/json/%s" % address.encode("utf-8"))
         defer.returnValue(result.body)
 
 
