@@ -1,3 +1,9 @@
+=======
+Cyclone
+=======
+:Info: See `github <http://github.com/fiorix/cyclone>`_ for the latest source.
+:Author: Alexandre Fiori <fiorix@gmail.com>
+
 About
 =====
 
