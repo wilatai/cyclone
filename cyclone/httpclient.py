@@ -1,9 +1,9 @@
 # coding: utf-8
 
+from cyclone.web import _O
 from twisted.web import client
-from cyclone.util import superdict
 
-class Page(superdict):
+class Page(_O):
     pass
 
 class HTTPClientFactory(client.HTTPClientFactory):

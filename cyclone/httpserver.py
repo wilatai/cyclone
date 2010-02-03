@@ -21,7 +21,7 @@ class HTTPConnection(basic.LineReceiver):
     def connectionMade(self):
         self._headersbuffer = []
         self._contentbuffer = []
-        self._finishCallback = None
+        self._finish_callback = None
         self.no_keep_alive = False
         self.content_length = None
         self.request_callback = self.factory
@@ -30,14 +30,14 @@ class HTTPConnection(basic.LineReceiver):
         self._request_finished = False
 
     def connectionLost(self, reason):
-        if self._finishCallback:
-            self._finishCallback.callback(reason.getErrorMessage())
-            self._finishCallback = None
+        if self._finish_callback:
+            self._finish_callback.callback(reason.getErrorMessage())
+            self._finish_callback = None
     
     def notifyFinish(self):
-        if self._finishCallback is None:
-            self._finishCallback = defer.Deferred()
-        return self._finishCallback
+        if self._finish_callback is None:
+            self._finish_callback = defer.Deferred()
+        return self._finish_callback
 
     def lineReceived(self, line):
         if line:

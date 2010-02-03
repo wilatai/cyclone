@@ -50,7 +50,7 @@ class RequestHandler(object):
         self.ui["modules"] = _O((n, self._ui_module(n, m)) for n, m in
                                 application.ui_modules.iteritems())
         self.clear()
-	self.request.connection.no_keep_alive = self.no_keep_alive
+        self.request.connection.no_keep_alive = self.no_keep_alive
 
     @property
     def settings(self):
@@ -919,7 +919,7 @@ class Application(protocol.ServerFactory):
             self.transforms = transforms
         self.handlers = []
         self.default_host = default_host
-        self.settings = util.superdict(settings)
+        self.settings = _O(settings)
         self.ui_modules = {}
         self.ui_methods = {}
         self._load_ui_modules(settings.get("ui_modules", {}))
@@ -932,7 +932,8 @@ class Application(protocol.ServerFactory):
                 (r"/(favicon\.ico)", StaticFileHandler, dict(path=path)),
                 (r"/(robots\.txt)", StaticFileHandler, dict(path=path)),
             ])
-        if handlers: self.add_handlers(".*$", handlers)
+        if handlers:
+            self.add_handlers(".*$", handlers)
 
         # Automatically reload modified modules
         #if self.settings.get("debug") and not wsgi:
@@ -1281,7 +1282,8 @@ class _O(dict):
         try:
             return self[name]
         except KeyError:
-            raise AttributeError(name)
+            return None
+            #raise AttributeError(name)
 
     def __setattr__(self, name, value):
         self[name] = value
