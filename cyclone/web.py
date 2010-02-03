@@ -2,7 +2,7 @@
 
 from twisted.python import log, failure
 from twisted.internet import defer, protocol
-from cyclone import util, escape, template, httpserver
+from cyclone import escape, template, httpserver
 
 import base64
 import binascii
