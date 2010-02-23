@@ -5,7 +5,7 @@ import json, urllib
 
 def request(url, func, *args):
     req = json.dumps({"method":func, "params":args, "id":1})
-    result = urllib.urlopen("http://localhost:8888/jsonrpc", req).read()
+    result = urllib.urlopen(url, req).read()
     try:
         response = json.loads(result)
     except:
