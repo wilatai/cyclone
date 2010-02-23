@@ -776,7 +776,7 @@ class XmlrpcRequestHandler(RequestHandler):
         self.finish()
 
 class JsonrpcRequestHandler(RequestHandler):
-    def post(self):
+    def post(self, *args):
         try:
             req = escape.json_decode(self.request.body)
             method = req["method"]
@@ -791,7 +791,8 @@ class JsonrpcRequestHandler(RequestHandler):
 
         function = getattr(self, "jsonrpc_%s" % method, None)
         if callable(function):
-            d = defer.maybeDeferred(function, *params)
+            args = list(args) + params
+            d = defer.maybeDeferred(function, *args)
             d.addBoth(self._cbResult, jsonid)
         else:
             self._cbResult(AttributeError("method not found: %s" % method), jsonid)
