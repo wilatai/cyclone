@@ -14,16 +14,18 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import distutils.core
 import sys
+import setuptools
 
-distutils.core.setup(
+setuptools.setup(
     name="cyclone",
     version="0.1",
-    packages = ["cyclone"],
+    packages=["cyclone"],
+#    install_requires=["twisted"],
     author="fiorix",
     author_email="fiorix@gmail.com",
-    url="http://cycloneweb.googlecode.com/",
+    url="http://github.com/fiorix/cyclone/",
     license="http://www.apache.org/licenses/LICENSE-2.0",
-    description="non-blocking web server",
+    description="Non-blocking web server. A facebook's tornado implementation on top of Twisted.",
+    keywords="web server non-blocking python twisted facebook tornado",
 )
