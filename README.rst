@@ -343,3 +343,16 @@ The source code ships with `examples and demos <http://github.com/fiorix/cyclone
 Also, we've found that some people is already using it:
 
 - `RestMQ <http://github.com/gleicon/restmq>`_: a redis based message queue
+
+
+Credits
+=======
+Thanks to (in no particular order):
+
+- Gleicon Moraes
+  
+  - Testing and using it in the `RestMQ <http://github.com/gleicon/restmq>`_ web service
+
+- Vanderson Mota
+
+  - Patching setup.py and PyPi maintenance
