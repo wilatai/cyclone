@@ -16,6 +16,7 @@ Key differences between Cyclone and Tornado
 - Localization is based upon the standard `Gettext <http://www.gnu.org/software/gettext/>`_ instead of the CSV implementation in the original Tornado. Moreover, it supports pluralization exactly like Tornado does.
 - It ships with an asynchronous HTTP client based on `TwistedWeb <http://twistedmatrix.com/trac/wiki/TwistedWeb>`_, however, it's fully compatible with one provided by Tornado - which is based on `PyCurl <http://pycurl.sourceforge.net/>`_. (The HTTP server code is NOT based on TwistedWeb, for several reasons)
 - Native support for XMLRPC and JsonRPC. (see the `demo <http://github.com/fiorix/cyclone/tree/master/demos/rpc/>`_)
+- WebSocket protocol class is just like any other Twisted Protocol (i.e.: LineReceiver; see the `demo <http://github.com/fiorix/cyclone/tree/master/demos/websocket/>`_)
 
 Advantages of being a Twisted Protocol
 --------------------------------------
