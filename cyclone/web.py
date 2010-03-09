@@ -823,7 +823,7 @@ class WebSocketHandler(RequestHandler):
 
     def sendMessage(self, message):
         if isinstance(message, dict):
-            message = cyclone.escape.json_encode(message)
+            message = escape.json_encode(message)
         if isinstance(message, unicode):
             message = message.encode("utf-8")
         assert isinstance(message, str)
