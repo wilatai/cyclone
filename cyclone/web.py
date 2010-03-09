@@ -709,6 +709,7 @@ class RequestHandler(object):
     def _ui_method(self, method):
         return lambda *args, **kwargs: method(self, *args, **kwargs)
 
+
 class XmlrpcRequestHandler(RequestHandler):
     FAILURE = 8002
     NOT_FOUND = 8001
@@ -775,6 +776,7 @@ class XmlrpcRequestHandler(RequestHandler):
         self.write(xmlrpclib.dumps(s, methodresponse=True))
         self.finish()
 
+
 class JsonrpcRequestHandler(RequestHandler):
     def post(self, *args):
         try:
@@ -806,6 +808,51 @@ class JsonrpcRequestHandler(RequestHandler):
         json_data = escape.json_encode({"result":result, "error":error, "id":jsonid})
         self.write(json_data)
         self.finish()
+
+
+class WebSocketHandler(RequestHandler):
+    def __init__(self, application, request):
+        RequestHandler.__init__(self, application, request)
+        self.transport = request.connection.transport
+
+    def connectionMade(self, *args, **kwargs):
+        pass
+
+    def messageReceived(self, message):
+        pass
+
+    def sendMessage(self, message):
+        if isinstance(message, dict):
+            message = cyclone.escape.json_encode(message)
+        if isinstance(message, unicode):
+            message = message.encode("utf-8")
+        assert isinstance(message, str)
+        self.transport.write("\x00" + message + "\xff")
+
+    def _execute(self, transforms, *args, **kwargs):
+        self.request.connection.delimiter = "\xff"
+        self.request.connection.lineReceived = self.messageReceived
+        self.notifyFinish().addCallback(self.connectionLost)
+
+        try:
+            assert self.request.headers["Upgrade"] == "WebSocket"
+            assert self.request.headers["Connection"] == "Upgrade"
+            assert self.request.headers.get("Origin") is not None
+        except:
+            message = "Expected WebSocket Headers"
+            self.transport.write("HTTP/1.1 403 Forbidden\r\nContent-Length: " +
+                str(len(message)) + "\r\n\r\n" + message)
+            self.close()
+        else:
+            self.transport.write(
+                "HTTP/1.1 101 Web Socket Protocol Handshake\r\n"
+                "Upgrade: WebSocket\r\n"
+                "Connection: Upgrade\r\n"
+                "Server: CycloneServer/0.1\r\n"
+                "WebSocket-Origin: " + self.request.headers["Origin"] + "\r\n"
+                "WebSocket-Location: ws://" + self.request.host +
+                self.request.path + "\r\n\r\n")
+        self.connectionMade(*args, **kwargs)
 
 
 def asynchronous(method):
