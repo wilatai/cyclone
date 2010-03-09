@@ -2,13 +2,14 @@
 # test: twistd -ny websocket.tac
 # point your browser to http://localhost:8888
 
+
 import cyclone.web
 from twisted.application import service, internet
 
 
 class MainHandler(cyclone.web.RequestHandler):
     def get(self):
-        self.render("index.html")
+        self.render("interact.html")
 
 
 class WebSocketHandler(cyclone.web.WebSocketHandler):
@@ -17,7 +18,7 @@ class WebSocketHandler(cyclone.web.WebSocketHandler):
 
     def messageReceived(self, message):
         self.sendMessage("echo: %s" % message)
-        self.transport.loseConnection()
+#        self.transport.loseConnection()
 
     def connectionLost(self, why):
         print "connection lost:", why

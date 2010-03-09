@@ -26,7 +26,7 @@ import urllib
 import urlparse
 import uuid
 import xmlrpclib
-
+ 
 
 class RequestHandler(object):
     """Subclass this class and define get() or post() to make a handler.
@@ -842,7 +842,7 @@ class WebSocketHandler(RequestHandler):
             message = "Expected WebSocket Headers"
             self.transport.write("HTTP/1.1 403 Forbidden\r\nContent-Length: " +
                 str(len(message)) + "\r\n\r\n" + message)
-            self.close()
+            self.transport.loseConnection()
         else:
             self.transport.write(
                 "HTTP/1.1 101 Web Socket Protocol Handshake\r\n"

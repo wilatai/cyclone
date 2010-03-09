@@ -3,3 +3,5 @@
 *.so
 *~
 build
+dist
+cyclone.egg-info
