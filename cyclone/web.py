@@ -814,6 +814,7 @@ class WebSocketHandler(RequestHandler):
     def __init__(self, application, request):
         RequestHandler.__init__(self, application, request)
         self.transport = request.connection.transport
+        self._wsbuffer = ""
 
     def connectionMade(self, *args, **kwargs):
         pass
@@ -829,9 +830,23 @@ class WebSocketHandler(RequestHandler):
         assert isinstance(message, str)
         self.transport.write("\x00" + message + "\xff")
 
+    def _rawDataReceived(self, data):
+        data = self._wsbuffer + data
+        if ord(data[0]) & 0x80 == 0x80:
+            raise Exception("Length-encoded format not yet supported")
+
+        try:
+            idx = data.find("\xff")
+            message = data[1:idx]
+            self._wsbuffer = data[idx+1:]
+        except:
+            log.err("Invalid WebSocket Message: %s" % repr(data))
+        else:
+            self.messageReceived(message)
+            
     def _execute(self, transforms, *args, **kwargs):
-        self.request.connection.delimiter = "\xff"
-        self.request.connection.lineReceived = self.messageReceived
+        self.request.connection.setRawMode()
+        self.request.connection.rawDataReceived = self._rawDataReceived
         self.notifyFinish().addCallback(self.connectionLost)
 
         try:
