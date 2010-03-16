@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# test: twistd -ny websocket.tac
+#!/usr/bin/env twistd -ny
 # point your browser to http://localhost:8888
 
 

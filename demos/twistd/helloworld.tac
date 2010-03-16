@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env twistd -ny
 #
 # Copyright 2009 Facebook
 #
