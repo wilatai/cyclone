@@ -80,7 +80,7 @@ class HTTPConnection(basic.LineReceiver):
             connection_header = self._request.headers.get("Connection")
             if self._request.supports_http_1_1():
                 disconnect = connection_header == "close"
-            elif ("Content-Length" in self._request.headers 
+            elif ("Content-Length" in self._request.headers
                     or self._request.method in ("HEAD", "GET")):
                 disconnect = connection_header != "Keep-Alive"
             else:
@@ -197,15 +197,15 @@ class HTTPRequest(object):
         self.version = version
         self.headers = headers or HTTPHeaders()
         self.body = body or ""
-
         if connection and connection.xheaders:
-            self.remote_ip = headers.get("X-Real-Ip", remote_ip)
-            self.protocol = headers.get("X-Scheme", protocol) or "http"
+            # Squid uses X-Forwarded-For, others use X-Real-Ip
+            self.remote_ip = self.headers.get("X-Real-Ip",
+                self.headers.get("X-Forwarded-For", remote_ip))
+            self.protocol = self.headers.get("X-Scheme", protocol) or "http"
         else:
             self.remote_ip = remote_ip
             self.protocol = protocol or "http"
-
-        self.host = host or headers.get("Host") or "127.0.0.1"
+        self.host = host or self.headers.get("Host") or "127.0.0.1"
         self.files = files or {}
         self.connection = connection
         self._start_time = time.time()
