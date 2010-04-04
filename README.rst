@@ -350,6 +350,10 @@ Credits
 =======
 Thanks to (in no particular order):
 
+- Nuswit Telephony API
+
+  - For allowing this code to be published
+
 - Gleicon Moraes
   
   - Testing and using it in the `RestMQ <http://github.com/gleicon/restmq>`_ web service
