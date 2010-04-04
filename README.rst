@@ -352,7 +352,7 @@ Thanks to (in no particular order):
 
 - Nuswit Telephony API
 
-  - For allowing this code to be published
+  - Granting permission for this code to be published and sponsoring
 
 - Gleicon Moraes
   
