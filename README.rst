@@ -331,6 +331,15 @@ More options and tricks
 
                 cyclone.web.Application.__init__(self, handlers, **settings)
 
+- Cookie-Secret generation
+
+    What I use to generate the "cookie_secrect" key used in cyclone.web.Application's
+    settings is something pretty simple, like this::
+
+    >>> import uuid, base64
+    >>> base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes)
+    'FoQv5hgLTYCb9aKiBagpJJYtLJInWUcXilg3/vPkUnI='
+
 
 Applications using Cyclone
 ==========================
