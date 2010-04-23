@@ -677,7 +677,7 @@ class RequestHandler(object):
             self.finish()
 
     def _execute_failure(self, err):
-        self._handle_request_exception(err.value)
+        self._handle_request_exception(err)
 
     def _generate_headers(self):
         lines = [self.request.version + " " + str(self._status_code) + " " +
@@ -697,20 +697,20 @@ class RequestHandler(object):
             self.request.remote_ip + ")"
 
     def _handle_request_exception(self, e):
-        if isinstance(e, HTTPError):
+        if isinstance(e.value, HTTPError):
             #if e.log_message:
             #    format = "%d %s: " + e.log_message
             #    args = [e.status_code, self._request_summary()] + list(e.args)
             #    msg = lambda *args: format % args
             #    log.err(msg(*args))
-            if e.status_code not in httplib.responses:
-                log.err("Bad HTTP status code: %d" % e.status_code)
-                self.send_error(500, exception=e)
+            if e.value.status_code not in httplib.responses:
+                log.err("Bad HTTP status code: %d" % e.value.status_code)
+                self.send_error(500, exception=e.value)
             else:
-                self.send_error(e.status_code, exception=e)
+                self.send_error(e.value.status_code, exception=e.value)
         else:
-            log.err("Uncaught exception %s :: %r :: %s" % (self._request_summary(),
-                    self.request, e))
+            log.err(e)
+            log.err("Uncaught exception %s :: %r" % (self._request_summary(), self.request))
             self.send_error(500, exception=e)
 
     def _ui_module(self, name, module):
