@@ -697,8 +697,11 @@ class RequestHandler(object):
             self.request.remote_ip + ")"
 
     def _handle_request_exception(self, e):
-        if isinstance(e.value, HTTPError):
-            e = e.value
+        try:
+            if isinstance(e.value, HTTPError):
+                e = e.value
+        except:
+            pass
         if isinstance(e, HTTPError):
             #if e.log_message:
             #    format = "%d %s: " + e.log_message
