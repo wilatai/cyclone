@@ -698,16 +698,18 @@ class RequestHandler(object):
 
     def _handle_request_exception(self, e):
         if isinstance(e.value, HTTPError):
+            e = e.value
+        if isinstance(e, HTTPError):
             #if e.log_message:
             #    format = "%d %s: " + e.log_message
             #    args = [e.status_code, self._request_summary()] + list(e.args)
             #    msg = lambda *args: format % args
             #    log.err(msg(*args))
-            if e.value.status_code not in httplib.responses:
-                log.err("Bad HTTP status code: %d" % e.value.status_code)
-                self.send_error(500, exception=e.value)
+            if e.status_code not in httplib.responses:
+                log.err("Bad HTTP status code: %d" % e.status_code)
+                self.send_error(500, exception=e)
             else:
-                self.send_error(e.value.status_code, exception=e.value)
+                self.send_error(e.status_code, exception=e)
         else:
             log.err(e)
             log.err("Uncaught exception %s :: %r" % (self._request_summary(), self.request))
