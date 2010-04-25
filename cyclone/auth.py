@@ -293,13 +293,13 @@ class OAuthMixin(object):
             callback(None)
             return
         access_token = _oauth_parse_response(response.body)
-        user = self._oauth_get_user(access_token,
-             self._on_oauth_get_user, access_token, callback)
+        user = self._oauth_get_user(access_token, self.async_callback(
+             self._on_oauth_get_user, access_token, callback))
 
     def _oauth_get_user(self, access_token, callback):
         raise NotImplementedError()
 
-    def _on_oauth_get_user(self, user, access_token, callback):
+    def _on_oauth_get_user(self, access_token, callback, user):
         if not user:
             callback(None)
             return
