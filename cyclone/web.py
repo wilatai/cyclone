@@ -81,6 +81,14 @@ class RequestHandler(object):
         """
         pass
 
+    def on_connection_close(self, *args, **kwargs):
+        """Called when the connection is closed.
+
+        You may override this to clean up resources associated with
+        long-lived connections.
+        """
+        pass
+
     def clear(self):
         """Resets all headers and content for this response."""
         self._headers = {
@@ -669,6 +677,7 @@ class RequestHandler(object):
                 d = defer.maybeDeferred(function, *args, **kwargs)
                 d.addCallback(self._execute_success)
                 d.addErrback(self._execute_failure)
+                self.notifyFinish().addCallback(self.on_connection_close)
         except Exception, e:
             self._handle_request_exception(e)
 
