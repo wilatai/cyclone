@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env twistd -ny
 # coding: utf-8
 #
 # Copyright 2010 Alexandre Fiori
