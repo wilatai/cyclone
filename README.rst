@@ -370,3 +370,7 @@ Thanks to (in no particular order):
 - Vanderson Mota
 
   - Patching setup.py and PyPi maintenance
+
+- Andrew Badr
+
+  - Fixing auth bugs and adding current Tornado's features
