@@ -17,6 +17,7 @@ Key differences between Cyclone and Tornado
 - It ships with an asynchronous HTTP client based on `TwistedWeb <http://twistedmatrix.com/trac/wiki/TwistedWeb>`_, however, it's fully compatible with one provided by Tornado - which is based on `PyCurl <http://pycurl.sourceforge.net/>`_. (The HTTP server code is NOT based on TwistedWeb, for several reasons)
 - Native support for XMLRPC and JsonRPC. (see the `rpc demo <http://github.com/fiorix/cyclone/tree/master/demos/rpc/>`_)
 - WebSocket protocol class is just like any other Twisted Protocol (i.e.: LineReceiver; see the `websocket demo <http://github.com/fiorix/cyclone/tree/master/demos/websocket/>`_)
+- Support for sending e-mail based on `Twisted Mail <http://twistedmatrix.com/trac/wiki/TwistedMail>`_, with authentication and TLS, plus an easy way to create plain text or HTML messages, and attachments. (see the `e-mail demo <http://github.com/fiorix/cyclone/tree/master/demos/email>`_)
 
 Advantages of being a Twisted Protocol
 --------------------------------------
