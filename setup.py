@@ -21,7 +21,7 @@ setuptools.setup(
     name="cyclone",
     version="0.3",
     packages=["cyclone"],
-    install_requires=["twisted"],
+#    install_requires=["twisted"],
     author="fiorix",
     author_email="fiorix@gmail.com",
     url="http://github.com/fiorix/cyclone/",
