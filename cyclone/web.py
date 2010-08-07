@@ -44,7 +44,7 @@ import urllib
 import urlparse
 import uuid
 import xmlrpclib
- 
+import struct 
 
 class RequestHandler(object):
     """Subclass this class and define get() or post() to make a handler.
@@ -862,6 +862,10 @@ class WebSocketHandler(RequestHandler):
         RequestHandler.__init__(self, application, request)
         self.transport = request.connection.transport
         self._wsbuffer = ""
+        self.nonce = None
+        self.k1 = None
+        self.k2 = None
+        self._postheader = False
 
     def connectionMade(self, *args, **kwargs):
         pass
@@ -876,12 +880,25 @@ class WebSocketHandler(RequestHandler):
             message = message.encode("utf-8")
         assert isinstance(message, str)
         self.transport.write("\x00" + message + "\xff")
-
+    
     def _rawDataReceived(self, data):
-        data = self._wsbuffer + data
-        if ord(data[0]) & 0x80 == 0x80:
+        if len(data) == 8 and self._postheader == True:
+            self.nonce = data.strip()
+            token = self._calculate_token(self.k1, self.k2, self.nonce)
+            self.transport.write(
+                "HTTP/1.1 101 Web Socket Protocol Handshake\r\n"
+                "Upgrade: WebSocket\r\n"
+                "Connection: Upgrade\r\n"
+                "Server: CycloneServer/0.1\r\n"
+                "Sec-WebSocket-Origin: " + self.request.headers["Origin"] + "\r\n"
+                "Sec-WebSocket-Location: ws://" + self.request.host +
+                self.request.path + "\r\n\r\n"+token+"\r\n")
+            self._postheader = False
+            self.flush()
+            return
+        elif ord(data[0]) & 0x80 == 0x80 and self._protocol < 76:
             raise Exception("Length-encoded format not yet supported")
-
+        
         try:
             idx = data.find("\xff")
             message = data[1:idx]
@@ -906,16 +923,37 @@ class WebSocketHandler(RequestHandler):
                 str(len(message)) + "\r\n\r\n" + message)
             self.transport.loseConnection()
         else:
-            self.transport.write(
-                "HTTP/1.1 101 Web Socket Protocol Handshake\r\n"
-                "Upgrade: WebSocket\r\n"
-                "Connection: Upgrade\r\n"
-                "Server: CycloneServer/0.1\r\n"
-                "WebSocket-Origin: " + self.request.headers["Origin"] + "\r\n"
-                "WebSocket-Location: ws://" + self.request.host +
-                self.request.path + "\r\n\r\n")
+            if self.request.headers.has_key('Sec-Websocket-Key1') == False or self.request.headers.has_key('Sec-Websocket-Key2') == False: 
+                log.msg('Using old ws spec (draft 75)')
+                self.transport.write(
+                    "HTTP/1.1 101 Web Socket Protocol Handshake\r\n"
+                    "Upgrade: WebSocket\r\n"
+                    "Connection: Upgrade\r\n"
+                    "Server: CycloneServer/0.1\r\n"
+                    "WebSocket-Origin: " + self.request.headers["Origin"] + "\r\n"
+                    "WebSocket-Location: ws://" + self.request.host +
+                    self.request.path + "\r\n\r\n")
+                self._protocol = 75
+            else:
+                log.msg('Using ws draft 76 header exchange')
+                self.k1 = self.request.headers["Sec-WebSocket-Key1"]
+                self.k2 = self.request.headers["Sec-WebSocket-Key2"]
+                self._protocol = 76
+        self._postheader = True
         self.connectionMade(*args, **kwargs)
-
+    
+    def _calculate_token(self, k1, k2, k3):
+        token = struct.pack('>ii8s', self._filterella(k1), self._filterella(k2), k3)
+        return hashlib.md5(token).digest()
+    
+    def _filterella(self, w):
+        nums = []
+        spaces = 0
+        for l in w:
+            if l.isdigit(): nums.append(l)
+            if l.isspace(): spaces = spaces + 1
+        x = int(''.join(nums))/spaces
+        return x
 
 def asynchronous(method):
     """Wrap request handler methods with this if they are asynchronous.
