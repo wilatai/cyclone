@@ -244,7 +244,7 @@ class OAuthMixin(object):
             callback(None)
             return
         token = dict(key=cookie_key, secret=cookie_secret)
-        httpclient.fetch(self._oauth_access_token_url(token))
+        d = httpclient.fetch(self._oauth_access_token_url(token))
         d.addCallback(self.async_callback(self._on_access_token, callback))
 
     def _oauth_request_token_url(self):
