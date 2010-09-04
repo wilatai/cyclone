@@ -14,8 +14,8 @@
 # limitations under the License.
 
 import types
-from txredisapi import api
-from txredisapi.protocol import RedisProtocol, SubscriberProtocol
+from cyclone.redis import api
+from cyclone.redis.protocol import RedisProtocol, SubscriberProtocol
 from twisted.internet import defer, reactor, protocol
 
 

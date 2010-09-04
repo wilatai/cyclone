@@ -19,7 +19,7 @@ import operator
 import functools
 import collections
 from twisted.internet import task, defer
-from txredisapi.hashring import HashRing
+from cyclone.redis.hashring import HashRing
 import re
 
 _findhash = re.compile('.+\{(.*)\}.*', re.I)
