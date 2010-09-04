@@ -90,8 +90,15 @@ class queueHandler(cyclone.web.RequestHandler):
             try:
                 members = self.settings.queue.peers[chan]
                 members.pop(members.index(self))
-            except Exception, e:
-                print "ERR:", e
+            except:
+                pass
+            else:
+                if not members:
+                    if "*" in chan:
+                        self.settings.queue.current_connection.punsubscribe(chan)
+                    else:
+                        self.settings.queue.current_connection.unsubscribe(chan)
+                
 
     @defer.inlineCallbacks
     def post(self, channel):
@@ -113,15 +120,9 @@ class QueueProtocol(cyclone.redis.protocol.SubscriberProtocol):
         else:
             peers = self.factory.peers[channel]
 
-        if peers:
-            for peer in peers:
-                peer.write("%s: %s\r\n" % (channel, message))
-                peer.flush()
-        else:
-            if "*" in channel:
-                self.punsubscribe(channel)
-            else:
-                self.unsubscribe(channel)
+        for peer in peers:
+            peer.write("%s: %s\r\n" % (channel, message))
+            peer.flush()
 
     def connectionMade(self):
         self.factory.current_connection = self
