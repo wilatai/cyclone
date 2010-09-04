@@ -5,7 +5,7 @@ Try: twistd cyclone_redis_server --help
 Run: twistd -n cyclone_redis_server --redis-host=127.0.0.1 --redis-port=6379
 
 
-Test redis basic functionality
+Test basic redis functionality
 
     set/get foobar=hello world
     curl -D - -d "value=hello world" http://localhost:8888/text/foobar
