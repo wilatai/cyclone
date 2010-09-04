@@ -24,7 +24,7 @@ from collections import defaultdict
 import cyclone.web
 import cyclone.escape
 import cyclone.redis
-import cyclone.redis.protocol
+from cyclone.redis.protocol import SubscriberProtocol
 
 
 class textHandler(cyclone.web.RequestHandler):
@@ -76,7 +76,7 @@ class queueHandler(cyclone.web.RequestHandler):
         self.notifyFinish().addCallback(self.remove_peer)
 
         for channel in channels:
-            if "*" in channel:
+            if "*" in channel and self.settings.queue.current_connection is not None:
                 self.settings.queue.current_connection.psubscribe(channel)
             else:
                 self.settings.queue.current_connection.subscribe(channel)
@@ -93,7 +93,7 @@ class queueHandler(cyclone.web.RequestHandler):
             except:
                 pass
             else:
-                if not members:
+                if not members and self.settings.queue.current_connection is not None:
                     if "*" in chan:
                         self.settings.queue.current_connection.punsubscribe(chan)
                     else:
@@ -103,6 +103,10 @@ class queueHandler(cyclone.web.RequestHandler):
     @defer.inlineCallbacks
     def post(self, channel):
         message = self.get_argument("message")
+
+        if self.settings.queue.current_connection is None:
+            raise cyclone.web.HTTPError(503)
+
         try:
             n = yield self.settings.redis.publish(channel, message.encode("utf-8"))
         except Exception, e:
@@ -113,7 +117,7 @@ class queueHandler(cyclone.web.RequestHandler):
         self.finish("OK %d\r\n" % n)
 
 
-class QueueProtocol(cyclone.redis.protocol.SubscriberProtocol):
+class QueueProtocol(SubscriberProtocol):
     def messageReceived(self, pattern, channel, message):
         if pattern:
             peers = self.factory.peers[pattern]
@@ -126,6 +130,11 @@ class QueueProtocol(cyclone.redis.protocol.SubscriberProtocol):
 
     def connectionMade(self):
         self.factory.current_connection = self
+        for chan in self.factory.peers:
+            if "*" in chan:
+                self.psubscribe(chan)
+            else:
+                self.subscribe(chan)
 
     def connectionLost(self, reason):
         self.factory.current_connection = None
