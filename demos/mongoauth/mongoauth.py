@@ -44,12 +44,6 @@ class LoginHandler(BaseHandler):
             </body></html>
         """ % (err == "invalid" and "invalid username or password" or ""))
 
-    def post(self):
-        u, p = self.get_argument("u"), self.get_argument("p")
-
-        password = hashlib.md5(p).hexdigest()
-        deferred = self.settings.mongo.mydb.users.find_one({"u":u, "p":password}, fields=["u"])
-
     @defer.inlineCallbacks
     @cyclone.web.asynchronous
     def post(self):
