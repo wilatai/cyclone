@@ -149,14 +149,15 @@ class QueueFactory(cyclone.redis.SubscriberFactory):
 
 
 class Application(cyclone.web.Application):
-    def __init__(self, redis_host, redis_port):
+    def __init__(self, redis_host, redis_port, redis_pool, redis_db):
         handlers = [
             (r"/text/(.+)", textHandler),
             (r"/queue/(.+)", queueHandler),
         ]
 
         settings = {
-            "redis": cyclone.redis.lazyRedisConnectionPool(redis_host, redis_port),
+            "redis": cyclone.redis.lazyRedisConnectionPool(
+                redis_host, redis_port, pool_size=redis_pool, db=redis_db),
             "queue": QueueFactory(),
         }
 

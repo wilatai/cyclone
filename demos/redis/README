@@ -2,7 +2,12 @@ The cyclone_redis_server is a Twisted Plugin.
 http://twistedmatrix.com/documents/current/core/howto/plugin.html
 
 Try: twistd cyclone_redis_server --help
-Run: twistd -n cyclone_redis_server --redis-host=127.0.0.1 --redis-port=6379
+Run:
+    ./server
+
+    or
+
+    twistd -n cyclone_redis_server --redis-host=127.0.0.1 --redis-port=6379
 
 
 Test basic redis functionality
