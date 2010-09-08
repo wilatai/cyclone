@@ -867,7 +867,7 @@ class WebSocketHandler(RequestHandler):
         self.k2 = None
         self._postheader = False
 
-    def headersReceived(self, headers):
+    def headersReceived(self):
         pass
 
     def connectionMade(self, *args, **kwargs):
@@ -938,7 +938,7 @@ class WebSocketHandler(RequestHandler):
             return self.transport.loseConnection()
         else:
             try:
-                self.headersReceived(self.request.headers)
+                self.headersReceived()
             except Exception, e:
                 return self._handle_request_exception(e)
 

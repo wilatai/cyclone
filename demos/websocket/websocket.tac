@@ -30,7 +30,10 @@ class AuthWebSocketHandler(WebSocketHandler):
     # headersReceived is called BEFORE connectionMade
     # when it raises an HTTPError exception it closes the connection
     # you may also use the regular @cyclone.web.authenticate decorator here
-    def headersReceived(self, headers):
+    # for this example, the browser has to set a cookie like this:
+    #   document.cookie = "auth=user@domain:password"
+    # see authinteract.html for details
+    def headersReceived(self):
         try:
             username, password = self.get_cookie("auth").split(":",1)
             print "username: %s, password: %s" % (username, password)
