@@ -18,7 +18,7 @@
 
 from twisted.python import log, failure
 from twisted.internet import defer, protocol
-from cyclone import escape, template, httpserver
+from cyclone import __version__, escape, template, httpserver
 
 import base64
 import binascii
@@ -108,7 +108,7 @@ class RequestHandler(object):
     def clear(self):
         """Resets all headers and content for this response."""
         self._headers = {
-            "Server": "CycloneServer/0.1",
+            "Server": "CycloneServer/" + __version__,
             "Content-Type": "text/html; charset=UTF-8",
         }
         if not self.request.supports_http_1_1():
@@ -867,6 +867,9 @@ class WebSocketHandler(RequestHandler):
         self.k2 = None
         self._postheader = False
 
+    def headersReceived(self, headers):
+        pass
+
     def connectionMade(self, *args, **kwargs):
         pass
 
@@ -881,6 +884,14 @@ class WebSocketHandler(RequestHandler):
         assert isinstance(message, str)
         self.transport.write("\x00" + message + "\xff")
     
+    def _handle_request_exception(self, e):
+        if isinstance(e, HTTPError):
+            self.transport.loseConnection()
+        else:
+            log.err(e)
+            log.err("Uncaught exception %s :: %r" % (self._request_summary(), self.request))
+            self.transport.loseConnection()
+
     def _rawDataReceived(self, data):
         if len(data) == 8 and self._postheader == True:
             self.nonce = data.strip()
@@ -889,7 +900,7 @@ class WebSocketHandler(RequestHandler):
                 "HTTP/1.1 101 Web Socket Protocol Handshake\r\n"
                 "Upgrade: WebSocket\r\n"
                 "Connection: Upgrade\r\n"
-                "Server: CycloneServer/0.1\r\n"
+                "Server: CycloneServer/"+__version__+"\r\n"
                 "Sec-WebSocket-Origin: " + self.request.headers["Origin"] + "\r\n"
                 "Sec-WebSocket-Location: ws://" + self.request.host +
                 self.request.path + "\r\n\r\n"+token+"\r\n")
@@ -906,7 +917,10 @@ class WebSocketHandler(RequestHandler):
         except:
             log.err("Invalid WebSocket Message: %s" % repr(data))
         else:
-            self.messageReceived(message)
+            try:
+                self.messageReceived(message)
+            except Exception, e:
+                self._handle_request_exception(e)
             
     def _execute(self, transforms, *args, **kwargs):
         self.request.connection.setRawMode()
@@ -921,15 +935,21 @@ class WebSocketHandler(RequestHandler):
             message = "Expected WebSocket Headers"
             self.transport.write("HTTP/1.1 403 Forbidden\r\nContent-Length: " +
                 str(len(message)) + "\r\n\r\n" + message)
-            self.transport.loseConnection()
+            return self.transport.loseConnection()
         else:
-            if self.request.headers.has_key('Sec-Websocket-Key1') == False or self.request.headers.has_key('Sec-Websocket-Key2') == False: 
+            try:
+                self.headersReceived(self.request.headers)
+            except Exception, e:
+                return self._handle_request_exception(e)
+
+            if self.request.headers.has_key('Sec-Websocket-Key1') == False or \
+                self.request.headers.has_key('Sec-Websocket-Key2') == False: 
                 log.msg('Using old ws spec (draft 75)')
                 self.transport.write(
                     "HTTP/1.1 101 Web Socket Protocol Handshake\r\n"
                     "Upgrade: WebSocket\r\n"
                     "Connection: Upgrade\r\n"
-                    "Server: CycloneServer/0.1\r\n"
+                    "Server: CycloneServer/"+__version__+"\r\n"
                     "WebSocket-Origin: " + self.request.headers["Origin"] + "\r\n"
                     "WebSocket-Location: ws://" + self.request.host +
                     self.request.path + "\r\n\r\n")
@@ -941,7 +961,7 @@ class WebSocketHandler(RequestHandler):
                 self._protocol = 76
         self._postheader = True
         self.connectionMade(*args, **kwargs)
-    
+
     def _calculate_token(self, k1, k2, k3):
         token = struct.pack('>ii8s', self._filterella(k1), self._filterella(k2), k3)
         return hashlib.md5(token).digest()
