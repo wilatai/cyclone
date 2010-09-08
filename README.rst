@@ -19,6 +19,7 @@ Key differences between Cyclone and Tornado
 - WebSocket protocol class is just like any other Twisted Protocol (i.e.: LineReceiver; see the `websocket demo <http://github.com/fiorix/cyclone/tree/master/demos/websocket/>`_)
 - Support for sending e-mail based on `Twisted Mail <http://twistedmatrix.com/trac/wiki/TwistedMail>`_, with authentication and TLS, plus an easy way to create plain text or HTML messages, and attachments. (see the `e-mail demo <http://github.com/fiorix/cyclone/tree/master/demos/email>`_)
 - Built-in support for `Redis <http://code.google.com/p/redis/>`_, based on `txredisapi <http://github.com/fiorix/txredisapi>`_. We usually need an in-memory caching server like memcache for web applications. However, we prefer redis over memcache because it supports more operations like pubsub, various data types like sets, hashes (python dict), and persistent storage. See the `redis demo <http://github.com/fiorix/cyclone/tree/master/demos/redis/>`_ for details.
+- Support for HTTP Authentication. See the `authentication demo <http://github.com/fiorix/cyclone/tree/master/demos/httpauth/>`_ for details.
 
 Advantages of being a Twisted Protocol
 --------------------------------------

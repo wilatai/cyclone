@@ -470,6 +470,12 @@ class RequestHandler(object):
             return
         self.clear()
         self.set_status(status_code)
+
+        e = kwargs.get("exception")
+        if isinstance(e, HTTPAuthenticationRequired):
+            args = ",".join(['%s="%s"' % (k, v) for k, v in e.kwargs.items()])
+            self.set_header("WWW-Authenticate", "%s %s" % (e.auth_type, args))
+
         message = self.get_error_html(status_code, **kwargs)
         self.finish(message)
 
@@ -723,11 +729,12 @@ class RequestHandler(object):
 
     def _handle_request_exception(self, e):
         try:
-            if isinstance(e.value, HTTPError):
+            if isinstance(e.value, (HTTPError, HTTPAuthenticationRequired)):
                 e = e.value
         except:
             pass
-        if isinstance(e, HTTPError):
+
+        if isinstance(e, (HTTPError, HTTPAuthenticationRequired)):
             #if e.log_message:
             #    format = "%d %s: " + e.log_message
             #    args = [e.status_code, self._request_summary()] + list(e.args)
@@ -1231,6 +1238,14 @@ class HTTPError(Exception):
         else:
             return message
 
+class HTTPAuthenticationRequired(HTTPError):
+    """An exception that will turn into an HTTP Authentication Required response"""
+    def __init__(self, auth_type="Basic", realm="Restricted Access", **kwargs):
+        self.status_code = 401
+        self.log_message = None
+        self.auth_type = auth_type
+        self.kwargs = kwargs
+        self.kwargs["realm"] = realm
 
 class ErrorHandler(RequestHandler):
     """Generates an error response with status_code for all requests."""
