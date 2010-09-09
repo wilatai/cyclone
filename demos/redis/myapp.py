@@ -23,6 +23,7 @@ from collections import defaultdict
 
 import cyclone.web
 import cyclone.escape
+
 import cyclone.redis
 from cyclone.redis.protocol import SubscriberProtocol
 
