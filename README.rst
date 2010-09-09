@@ -344,11 +344,77 @@ More options and tricks
     'FoQv5hgLTYCb9aKiBagpJJYtLJInWUcXilg3/vPkUnI='
 
 
+FAQ
+---
+
+- Where are the request headers?
+
+    They are part of the request, dude.::
+
+    class MyHandler(cyclone.web.RequestHandler):
+        def get(self):
+            # self.request.headers is a dict
+            user_agent = self.request.headers.get("User-Agent")
+
+- How do I access raw POST data?
+
+    Both raw POST data and GET/DELETE un-parsed query string are available::
+
+    class MyHandler(cyclone.web.RequestHandler):
+        def get(self):
+            raw = self.request.query
+
+        def post(self):
+            raw = self.request.body
+
+- Where is the request information, like remote IP address, HTTP method, URI and version?
+
+    Everything is available as request attributes::
+
+    class MyHandler(cyclone.web.RequestHandler):
+        def get(self):
+            remote_ip = self.request.remote_ip
+            method = self.request.method
+            uri = self.request.uri
+            version = self.request.version
+
+- How do I set my own headers for the reply?
+
+    Guess what, use self.set_header(name, value)::
+
+    class MyHandler(cyclone.web.RequestHandler):
+        def get(self):
+            self.set_header("Content-Type", "application/json")
+            self.finish(cyclone.escape.json_encode({"success":True}))
+
+- What HTTP methods are supported in RequestHandler?
+
+    Well, almost all of them. HEAD, GET, POST, DELETE and PUT are supported.
+    TRACE is disabled by default, because it may get you in trouble. CONNECT has nothing
+    to do with web servers, it's for proxies.
+
+    For more information on HTTP 1.1 methods, please refer to the `RFC 2612 Fielding, et al. <http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html>`_.
+    For information regarding TRACE vulnerabilities, please check the following links:
+    `What is HTTP TRACE? <http://www.cgisecurity.com/questions/httptrace.shtml>`_ and 
+    `Apache Week, security issues <http://www.apacheweek.com/issues/03-01-24#news>`_.
+
+    Supporting different HTTP methods in RequestHandler is easy::
+
+    class MyHandler(cyclone.web.RequestHandler):
+        def get(self):
+            pass
+
+        def head(self):
+            pass
+
+        ...
+
+
 Applications using Cyclone
 ==========================
 
 We've being using Cyclone for all of our private projects at `nuswit.com <http://nuswit.com>`_.
-Now that it's very stable and responsive, we decided to make it freely available for the public,
+Now that it's very stable and responsive, we decided to make it freely available to the public,
 and hope it become more popular in the Python/Twisted community.
 
 The source code ships with `examples and demos <http://github.com/fiorix/cyclone/tree/master/demos/>`_.
@@ -356,6 +422,7 @@ The source code ships with `examples and demos <http://github.com/fiorix/cyclone
 Also, we've found that some people is already using it:
 
 - `RestMQ <http://github.com/gleicon/restmq>`_: a redis based message queue
+- `Brazilian Ministry of Education <http://portal.mec.gov.br/index.html>`_: using cyclone on the `Digital Library <http://bd.renapi.org/>`_ project.
 
 
 Credits
