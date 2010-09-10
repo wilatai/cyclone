@@ -351,41 +351,41 @@ FAQ
 
     They are part of the request, dude.::
 
-    class MyHandler(cyclone.web.RequestHandler):
-        def get(self):
-            # self.request.headers is a dict
-            user_agent = self.request.headers.get("User-Agent")
+        class MyHandler(cyclone.web.RequestHandler):
+            def get(self):
+                # self.request.headers is a dict
+                user_agent = self.request.headers.get("User-Agent")
 
 - How do I access raw POST data?
 
     Both raw POST data and GET/DELETE un-parsed query string are available::
 
-    class MyHandler(cyclone.web.RequestHandler):
-        def get(self):
-            raw = self.request.query
+        class MyHandler(cyclone.web.RequestHandler):
+            def get(self):
+                raw = self.request.query
 
-        def post(self):
-            raw = self.request.body
+            def post(self):
+                raw = self.request.body
 
 - Where is the request information, like remote IP address, HTTP method, URI and version?
 
     Everything is available as request attributes::
 
-    class MyHandler(cyclone.web.RequestHandler):
-        def get(self):
-            remote_ip = self.request.remote_ip
-            method = self.request.method
-            uri = self.request.uri
-            version = self.request.version
+        class MyHandler(cyclone.web.RequestHandler):
+            def get(self):
+                remote_ip = self.request.remote_ip
+                method = self.request.method
+                uri = self.request.uri
+                version = self.request.version
 
 - How do I set my own headers for the reply?
 
     Guess what, use self.set_header(name, value)::
 
-    class MyHandler(cyclone.web.RequestHandler):
-        def get(self):
-            self.set_header("Content-Type", "application/json")
-            self.finish(cyclone.escape.json_encode({"success":True}))
+        class MyHandler(cyclone.web.RequestHandler):
+            def get(self):
+                self.set_header("Content-Type", "application/json")
+                self.finish(cyclone.escape.json_encode({"success":True}))
 
 - What HTTP methods are supported in RequestHandler?
 
@@ -398,16 +398,16 @@ FAQ
     `What is HTTP TRACE? <http://www.cgisecurity.com/questions/httptrace.shtml>`_ and 
     `Apache Week, security issues <http://www.apacheweek.com/issues/03-01-24#news>`_.
 
-    Supporting different HTTP methods in RequestHandler is easy::
+    Supporting different HTTP methods in the same RequestHandler is easy::
 
-    class MyHandler(cyclone.web.RequestHandler):
-        def get(self):
-            pass
+        class MyHandler(cyclone.web.RequestHandler):
+            def get(self):
+                pass
 
-        def head(self):
-            pass
+            def head(self):
+                pass
 
-        ...
+            ...
 
 
 Applications using Cyclone
