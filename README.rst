@@ -339,9 +339,9 @@ More options and tricks
     What I use to generate the "cookie_secrect" key used in cyclone.web.Application's
     settings is something pretty simple, like this::
 
-    >>> import uuid, base64
-    >>> base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes)
-    'FoQv5hgLTYCb9aKiBagpJJYtLJInWUcXilg3/vPkUnI='
+        >>> import uuid, base64
+        >>> base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes)
+        'FoQv5hgLTYCb9aKiBagpJJYtLJInWUcXilg3/vPkUnI='
 
 
 FAQ
@@ -349,7 +349,7 @@ FAQ
 
 - Where are the request headers?
 
-    They are part of the request, dude.::
+    They are part of the request, dude::
 
         class MyHandler(cyclone.web.RequestHandler):
             def get(self):
