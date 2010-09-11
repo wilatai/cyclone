@@ -423,6 +423,7 @@ Also, we've found that some people is already using it:
 
 - `RestMQ <http://github.com/gleicon/restmq>`_: a redis based message queue
 - `Brazilian Ministry of Education <http://portal.mec.gov.br/index.html>`_: using cyclone on the `Digital Library <http://bd.renapi.org/>`_ project.
+- `Free IP Geolocation Web Service <http://freegeoip.net>`_: open source geoip web service based on cyclone
 
 
 Credits
