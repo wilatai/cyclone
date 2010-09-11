@@ -119,7 +119,11 @@ class HTTPConnection(basic.LineReceiver):
             #raise Exception("Malformed HTTP version in HTTP Request-Line")
             log.err("Malformed HTTP version in HTTP Request-Line: %s" % repr(start_line)[:100])
             return self.transport.loseConnection()
-        headers = HTTPHeaders.parse(data[eol:])
+        try:
+            headers = HTTPHeaders.parse(data[eol:])
+        except:
+            log.err("Malformed HTTP headers: %s" % repr(data[eol:][:100]))
+            return self.transport.loseConnection()
         self._request = HTTPRequest(
             connection=self, method=method, uri=uri, version=version,
             headers=headers, remote_ip=self.transport.getPeer().host)
@@ -288,6 +292,6 @@ class HTTPHeaders(dict):
         headers = cls()
         for line in headers_string.splitlines():
             if line:
-                name, value = line.split(": ", 1)
-                headers[name] = value
+                name, value = line.split(":", 1)
+                headers[name] = value[1:] if value[0] == " " else value
         return headers
