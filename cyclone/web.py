@@ -771,6 +771,7 @@ class XmlrpcRequestHandler(RequestHandler):
     allowNone = False
 
     def post(self):
+        self._auto_finish = False
         self.set_header("Content-Type", "text/xml")
         try:
             args, functionPath = xmlrpclib.loads(self.request.body)
@@ -818,8 +819,7 @@ class XmlrpcRequestHandler(RequestHandler):
             s = xmlrpclib.dumps(f,
                 methodresponse=True, allow_none=self.allowNone)
 
-        self.write(s)
-        self.finish()
+        self.finish(s)
 
     def _ebRender(self, failure):
         if isinstance(failure.value, xmlrpclib.Fault):
@@ -827,12 +827,12 @@ class XmlrpcRequestHandler(RequestHandler):
         else:
             s = xmlrpclib.Fault(self.FAILURE, "error")
 
-        self.write(xmlrpclib.dumps(s, methodresponse=True))
-        self.finish()
+        self.finish(xmlrpclib.dumps(s, methodresponse=True))
 
 
 class JsonrpcRequestHandler(RequestHandler):
     def post(self, *args):
+        self._auto_finish = False
         try:
             req = escape.json_decode(self.request.body)
             method = req["method"]
@@ -860,8 +860,7 @@ class JsonrpcRequestHandler(RequestHandler):
         else:
             error = None
         json_data = escape.json_encode({"result":result, "error":error, "id":jsonid})
-        self.write(json_data)
-        self.finish()
+        self.finish(json_data)
 
 
 class WebSocketHandler(RequestHandler):
