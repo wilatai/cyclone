@@ -35,7 +35,7 @@ class MainHandler(BaseHandler):
 class LoginHandler(BaseHandler):
     def get(self):
         err = self.get_argument("e", None)
-        self.write("""
+        self.finish("""
             <html><body><form action="/auth/login" method="post">
             username: <input type="text" name="u"><br>
             password: <input type="password" name="p"><br>
@@ -45,12 +45,16 @@ class LoginHandler(BaseHandler):
         """ % (err == "invalid" and "invalid username or password" or ""))
 
     @defer.inlineCallbacks
-    @cyclone.web.asynchronous
     def post(self):
         u, p = self.get_argument("u"), self.get_argument("p")
 
         password = hashlib.md5(p).hexdigest()
-        user = yield self.settings.mongo.mydb.users.find_one({"u":u, "p":password}, fields=["u"])
+        try:
+            user = yield self.settings.mongo.mydb.users.find_one({"u":u, "p":password}, fields=["u"])
+        except Exception, e:
+            log.err("mongo can't find_one({u:%s, p:%s}): %s" % (u, password, e))
+            raise cyclone.web.HTTPError(503)
+
         if user:
             user["_id"] = str(user["_id"])
             self.set_secure_cookie("user", cyclone.escape.json_encode(user))
