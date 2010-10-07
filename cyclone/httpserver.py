@@ -59,8 +59,9 @@ class HTTPConnection(basic.LineReceiver):
         if line:
             self._headersbuffer.append(line+self.delimiter)
         else:
-            self._on_headers(''.join(self._headersbuffer))
+            buff = "".join(self._headersbuffer)
             self._headersbuffer = []
+            self._on_headers(buff)
     
     def rawDataReceived(self, data):
         if self.content_length is not None:
@@ -71,9 +72,10 @@ class HTTPConnection(basic.LineReceiver):
 	
         self._contentbuffer.append(data)
         if self.content_length == 0:
-            self._on_request_body(''.join(self._contentbuffer))
+            buff = "".join(self._contentbuffer)
             self._contentbuffer = []
             self.content_length = None
+            self._on_request_body(buff)
             self.setLineMode(rest)
 	    
     def write(self, chunk):
@@ -101,11 +103,14 @@ class HTTPConnection(basic.LineReceiver):
                 disconnect = connection_header != "Keep-Alive"
             else:
                 disconnect = True
+
+        if self._finish_callback:
+            self._finish_callback.callback(None)
+            self._finish_callback = None
         self._request = None
         self._request_finished = False
-        if disconnect:
+        if disconnect is True:
             self.transport.loseConnection()
-            return
 
     def _on_headers(self, data):
         eol = data.find("\r\n")

@@ -431,7 +431,8 @@ class RequestHandler(object):
     def finish(self, chunk=None):
         """Finishes this response, ending the HTTP request."""
         assert not self._finished
-        if chunk is not None: self.write(chunk)
+        if chunk is not None:
+            self.write(chunk)
 
         # Automatically support ETags and add the Content-Length header if
         # we have not flushed any content yet.
@@ -1048,7 +1049,6 @@ def addslash(method):
 
 
 class Application(protocol.ServerFactory):
-    protocol = httpserver.HTTPConnection
     """A collection of request handlers that make up a web application.
 
     Instances of this class are callable and can be passed directly to
@@ -1086,6 +1086,8 @@ class Application(protocol.ServerFactory):
     keyword argument. We will serve those files from the /static/ URI,
     and we will serve /favicon.ico and /robots.txt from the same directory.
     """
+    protocol = httpserver.HTTPConnection
+
     def __init__(self, handlers=None, default_host="", transforms=None, **settings):
         if transforms is None:
             self.transforms = []
