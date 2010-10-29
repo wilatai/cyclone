@@ -77,12 +77,9 @@ class HTTPClient(object):
             self.url,
             Headers(self.headers),
             self.body_producer)
-        d.addCallbacks(self._response, self._error)
+        d.addCallback(self._response)
         return d
     
-    def _error(self, *args, **kwargs):
-        print args,kwargs
-        
     def _response(self, response):
         self.response = response
         self.response.error = None
