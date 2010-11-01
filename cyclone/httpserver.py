@@ -21,7 +21,6 @@ from twisted.protocols import basic
 from twisted.internet import defer, protocol
 import cgi
 import errno
-import fcntl
 import functools
 import time
 import urlparse
