@@ -16,6 +16,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import functools
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred
 from twisted.internet.protocol import Protocol
@@ -24,7 +25,8 @@ from twisted.internet.defer import succeed
 from cyclone.tw.client import Agent
 from cyclone.tw.http_headers import Headers
 from cyclone.tw.iweb import IBodyProducer
-from cyclone.web import _utf8
+from cyclone.web import _utf8, HTTPError
+from cyclone import escape
 
 agent = Agent(reactor)
 
@@ -99,3 +101,35 @@ def fetch(url, *args, **kwargs):
     c = HTTPClient(url,*args, **kwargs)
     d = c.fetch()
     return d
+
+class JsonRPC:
+    def __init__(self, url):
+        self.__rpcId = 0
+        self.__rpcUrl = url
+
+    def __getattr__(self, attr):
+        return functools.partial(self.__rpcRequest, attr)
+
+    def __rpcRequest(self, method, *args):
+        q = escape.json_encode({"method":method, "params":args, "id":self.__rpcId})
+        self.__rpcId += 1
+        r = Deferred()
+        d = fetch(self.__rpcUrl, method="POST", postdata=q)
+
+        def _success(response, deferred):
+            if response.code == 200:
+                data = escape.json_decode(response.body)
+                error = data.get("error")
+                if error:
+                    deferred.errback(Exception(error))
+                else:
+                    deferred.callback(data.get("result"))
+            else:
+                deferred.errback(HTTPError(response.code, response.phrase))
+
+        def _failure(failure, deferred):
+            deferred.errback(failure)
+
+        d.addCallback(_success, r)
+        d.addErrback(_failure, r)
+        return r

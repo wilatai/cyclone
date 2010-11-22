@@ -1,6 +1,8 @@
 #!/usr/bin/env python
+# coding: utf-8
 #
-# Copyright 2009 Facebook
+# Copyright 2010 Alexandre Fiori
+# based on the original Tornado by Facebook
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -14,18 +16,18 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import sys
-import setuptools
+import cyclone.httpclient
+from twisted.internet import defer, reactor
 
-setuptools.setup(
-    name="cyclone",
-    version="0.5-rc1",
-    packages=["cyclone", "cyclone.tw", "cyclone.redis"],
-#    install_requires=["twisted"],
-    author="fiorix",
-    author_email="fiorix@gmail.com",
-    url="http://github.com/fiorix/cyclone/",
-    license="http://www.apache.org/licenses/LICENSE-2.0",
-    description="Non-blocking web server. A facebook's tornado implementation on top of Twisted.",
-    keywords="web server non-blocking python twisted facebook tornado",
-)
+@defer.inlineCallbacks
+def main():
+    cli = cyclone.httpclient.JsonRPC("http://localhost:8888/jsonrpc")
+    print "echo:", (yield cli.echo("foo bar"))
+    print "sort:", (yield cli.sort(["foo", "bar"]))
+    print "count:", (yield cli.count(["foo", "bar"]))
+    print "geoip_lookup:", (yield cli.geoip_lookup("google.com"))
+    reactor.stop()
+
+if __name__ == "__main__":
+    main()
+    reactor.run()
