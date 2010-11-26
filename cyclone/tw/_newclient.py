@@ -31,7 +31,7 @@ __metaclass__ = type
 from zope.interface import implements
 
 from twisted.python import log
-from twisted.python.reflect import fullyQualifiedName
+#from twisted.python.reflect import fullyQualifiedName
 from twisted.python.failure import Failure
 from twisted.python.compat import set
 from twisted.internet.interfaces import IConsumer, IPushProducer
@@ -176,8 +176,8 @@ def _callAppFunction(function):
     try:
         function()
     except:
-        log.err(None, "Unexpected exception from %s" % (
-                fullyQualifiedName(function),))
+        log.err(None, "Unexpected exception from %s" % (repr(function)))
+                #fullyQualifiedName(function),))
 
 
 
