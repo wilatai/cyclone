@@ -445,3 +445,7 @@ Thanks to (in no particular order):
 - Andrew Badr
 
   - Fixing auth bugs and adding current Tornado's features
+
+- Jon Oberheide
+
+  - Syncing code with Tornado and security features/fixes
