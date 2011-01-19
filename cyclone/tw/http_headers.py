@@ -197,8 +197,9 @@ class Headers(object):
         @return: C{None}
         """
         if not isinstance(values, list):
-            raise TypeError("Header entry %r should be list but found "
-                            "instance of %r instead" % (name, type(values)))
+            raise TypeError("Header entry %r should have a value that is"
+                            " a list of header values, not a %r" % (name, type(values)))
+
         self._rawHeaders[name.lower()] = values
 
 
