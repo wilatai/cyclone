@@ -110,7 +110,9 @@ def sendmail(mailconf, message):
     if not isinstance(host, types.StringType):
         raise ValueError("mailconf requires a 'host' configuration")
 
-    if mailconf.get("tls", False) is True:
+    use_tls = mailconf.get("tls")
+
+    if use_tls:
         port = mailconf.get("port", 587)
         contextFactory = ClientContextFactory()
         contextFactory.method = SSLv3_METHOD
@@ -127,7 +129,8 @@ def sendmail(mailconf, message):
         username, password,
         message.from_addr, message.to_addrs, message.render(),
         result, contextFactory=contextFactory,
-        requireAuthentication=(username and password))
+        requireAuthentication=(username and password),
+        requireTransportSecurity=use_tls)
 
     reactor.connectTCP(host, port, factory)
     return result
