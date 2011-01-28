@@ -251,7 +251,7 @@ it has to be used *before* the ``defer.inlineCallbacks`` to function properly::
 
     class IndexHandler(cyclone.web.RequestHandler):
         @cyclone.web.authenticated
-        @defer.inlineCalbacks
+        @defer.inlineCallbacks
         def get(self):
             result = yield something()
             self.write(result)
@@ -449,3 +449,7 @@ Thanks to (in no particular order):
 - Jon Oberheide
 
   - Syncing code with Tornado and security features/fixes
+
+- `Silas Sewell <https://github.com/silas>`_
+
+  - Syncing code and minor mail fix
