@@ -25,11 +25,28 @@ class MainHandler(cyclone.web.RequestHandler):
     no_keep_alive = False
     def get(self):
         self.write("Hello, world")
+        print '\n\Requesthandler:', dir(self)
 
+class OtherHandler(cyclone.web.RequestDispatcherHandler):
+    """
+    Example of using the RequestDispatcherHandler instead
+    of the RequestHandler.
+    """
+    no_keep_alive = False
+
+    def index(self):
+        self.write('Index')
+
+    def page1(self):
+        self.write("Page 1")
+
+    def page2(self):
+        self.write("Page 2")
 
 def main():
     application = cyclone.web.Application([
         (r"/", MainHandler),
+        (r"/test/.*", OtherHandler),
     ], xheaders=True)
 
     reactor.listenTCP(8888, application)

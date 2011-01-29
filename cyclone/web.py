@@ -807,6 +807,48 @@ class RequestHandler(object):
         return lambda *args, **kwargs: method(self, *args, **kwargs)
 
 
+class RequestDispatcherHandler(RequestHandler):
+    """
+    Class which dispatches GET and POST requests to a class method with
+    any name, except for those starting with an underscore. If no method
+    is specified, the 'index' method is called. E.g.:
+
+    With a url->handler mapping like this:  (r"/user/.*", UserHandler),
+
+    /user/       will map to Userhandler.index()
+    /user/login  will map to Userhandler.login()
+    /user/logout will map to UserHandler.logout()
+    /user/view?id=1&name=test will map to UserHandler.view but has arguments
+    that can be accessed via the normally used self.get_argument('name', None) 
+    approach.
+    etc. etc.
+    
+    Raises a 404 when a specified method can not be found.
+    """
+    def _dispatch_request(self):
+        if self.request.uri.endswith('/'):
+            # If no method has been specified by name, dispatch to the 'index' method
+            func = getattr(self, 'index', None)
+        else:
+            # Otherwise dispatch to the respective method name
+            method_path = self.request.uri.split('?')[0]
+            method = method_path.split('/')[-1]
+            if method.startswith('_'):
+                # Not allowed
+                raise cyclone.web.HTTPError(404)
+            func = getattr(self, method, None)
+
+        if func:
+            return func()
+        raise cyclone.web.HTTPError(404)
+
+    def get(self):
+        return self._dispatch_request()
+
+    def post(self):
+        return self._dispatch_request()
+
+
 class XmlrpcRequestHandler(RequestHandler):
     FAILURE = 8002
     NOT_FOUND = 8001
