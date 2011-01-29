@@ -25,7 +25,6 @@ class MainHandler(cyclone.web.RequestHandler):
     no_keep_alive = False
     def get(self):
         self.write("Hello, world")
-        print '\n\Requesthandler:', dir(self)
 
 class OtherHandler(cyclone.web.RequestDispatcherHandler):
     """
